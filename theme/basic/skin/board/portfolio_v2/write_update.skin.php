@@ -97,7 +97,7 @@ function save_cropped_image($base64_data, $bo_table, $wr_id, $bf_no, $file_dir)
 // ----------------------------------------------------
 // (A) 고정형 썸네일 (fixed) -> bf_no = 0
 // ----------------------------------------------------
-if (isset($_POST['thumbnail_type']) && $_POST['thumbnail_type'] == 'fixed') {
+if (isset($_POST['wr_10']) && $_POST['wr_10'] == 'fixed') {
     if (!empty($_POST['cropped_image_fixed'])) {
         save_cropped_image($_POST['cropped_image_fixed'], $bo_table, $wr_id, 0, $file_dir);
     }
@@ -108,7 +108,7 @@ if (isset($_POST['thumbnail_type']) && $_POST['thumbnail_type'] == 'fixed') {
 // Before -> bf_no = 1
 // After  -> bf_no = 0
 // ----------------------------------------------------
-if (isset($_POST['thumbnail_type']) && $_POST['thumbnail_type'] == 'beforeafter') {
+if (isset($_POST['wr_10']) && $_POST['wr_10'] == 'beforeafter') {
     // After 이미지 (bf_no 0)
     if (!empty($_POST['cropped_image_after'])) {
         save_cropped_image($_POST['cropped_image_after'], $bo_table, $wr_id, 0, $file_dir);

@@ -565,13 +565,15 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label for="wr_1" class="block text-gray-800 text-base font-bold mb-2">위치</label>
-                    <input type="text" name="wr_1" value="<?php echo $write['wr_1'] ?>" id="wr_1"
+                    <input type="text" name="wr_1" value="<?php echo isset($write['wr_1']) ? $write['wr_1'] : ''; ?>"
+                        id="wr_1"
                         class="w-full border-2 border-gray-300 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-200 p-3 text-base"
                         placeholder="예: 서울 강남구">
                 </div>
                 <div>
                     <label for="wr_2" class="block text-gray-800 text-base font-bold mb-2">예상 견적 (만원)</label>
-                    <input type="text" name="wr_2" value="<?php echo $write['wr_2'] ?>" id="wr_2"
+                    <input type="text" name="wr_2" value="<?php echo isset($write['wr_2']) ? $write['wr_2'] : ''; ?>"
+                        id="wr_2"
                         class="w-full border-2 border-gray-300 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-200 p-3 text-base"
                         placeholder="예: 500">
                 </div>

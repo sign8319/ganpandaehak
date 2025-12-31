@@ -1,21 +1,22 @@
-# 1. DB 접속 정보 및 백업 파일 (절대 금지)
+# 1. DB 접속 정보 및 백업 파일
 dbconfig.php
 *.sql
 *.bak
+*.bak2
 
-# 2. 용량이 큰 외부 라이브러리 폴더 (여기에 파일이 몇 천 개씩 들어있습니다)
+# 2. 외부 라이브러리 폴더
 vendor/
 node_modules/
 
-# 3. 데이터 및 캐시 폴더 (사용자가 올린 이미지 등)
-data/
+# 3. 사용자 업로드 데이터만 제외 (data 폴더 안만)
+data/file/
+data/cache/
+data/session/
 _temp/
 
-# 4. 기타 시스템 및 견적서 이미지 제외
+# 4. 시스템 파일
 .DS_Store
 Thumbs.db
-*.png
-*.jpg
-*.gif
-# 테스트용 폴더 제외
-test/
+
+# 5. 백업 폴더 제외
+**/새 폴더/

@@ -1,0 +1,42 @@
+@charset "utf-8";
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+
+.sound_only {
+    display: none;
+}
+
+body {
+    font-family: 'Pretendard', sans-serif;
+}
+
+/* 커스텀 셀렉트 박스 스타일 */
+.custom-select {
+    position: relative;
+}
+
+.dropdown-options {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* 빨간 점 크기 조절 */
+.dropdown-options .option-item > span {
+    font-size: 0.5em;
+}
+
+/* 입력 필드 focus 스타일 */
+input[type="text"]:focus,
+input[type="tel"]:focus,
+input[type="email"]:focus,
+input[type="date"]:focus,
+textarea:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 2px #a3e635 !important; /* lime-400 색상 */
+    border-color: #a3e635 !important;
+}
+
+/* 커스텀 셀렉트 박스 focus 스타일 */
+.custom-select:focus-within {
+    outline: none !important;
+    box-shadow: 0 0 0 2px #a3e635 !important;
+    border-color: #a3e635 !important;
+}

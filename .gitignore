@@ -1,0 +1,21 @@
+# 1. DB 접속 정보 및 백업 파일 (절대 금지)
+dbconfig.php
+*.sql
+*.bak
+
+# 2. 용량이 큰 외부 라이브러리 폴더 (여기에 파일이 몇 천 개씩 들어있습니다)
+vendor/
+node_modules/
+
+# 3. 데이터 및 캐시 폴더 (사용자가 올린 이미지 등)
+data/
+_temp/
+
+# 4. 기타 시스템 및 견적서 이미지 제외
+.DS_Store
+Thumbs.db
+*.png
+*.jpg
+*.gif
+# 테스트용 폴더 제외
+test/

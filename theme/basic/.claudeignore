@@ -1,0 +1,6 @@
+data/
+uploads/
+.cache/
+node_modules/
+*.log
+*.sql

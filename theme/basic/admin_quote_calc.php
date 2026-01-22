@@ -190,6 +190,9 @@ foreach ($categories as $cat) {
                                 <div class="text-xs text-gray-500 mb-1">규격 / 수량</div>
                                 <div class="text-sm font-medium text-gray-900" id="result-spec">-</div>
                             </div>
+                            <div id="result-width-type" class="bg-blue-50 rounded-lg p-3 mb-4 hidden">
+                                <div class="text-sm font-medium text-blue-700" id="result-width-text"></div>
+                            </div>
                             <div class="space-y-2 mb-4">
                                 <div class="flex justify-between py-2 text-sm border-b"><span class="text-gray-600">기본
                                         금액</span><span class="font-semibold text-gray-900" id="result-base">0원</span>
@@ -457,6 +460,7 @@ foreach ($categories as $cat) {
         const quantity = parseInt(document.getElementById('quantity').value) || 1;
         let basePrice = 0;
         let spec = '';
+        let widthType = '';
 
         if (currentProduct.calc_type === 'area') {
             const inputWidth = parseFloat(document.getElementById('width').value) || 0;
@@ -476,7 +480,6 @@ foreach ($categories as $cat) {
             // 폭 판정 로직
             const rollWidth = Math.min(inputWidth, inputHeight);
             let unitPrice = currentProduct.unit_price;
-            let widthType = '';
             let widthInfoHtml = '';
             const widthInfoDiv = document.getElementById('width-info');
             const widthInfoBox = document.getElementById('width-info-box');
@@ -494,15 +497,15 @@ foreach ($categories as $cat) {
                     document.getElementById('add-cart-btn').disabled = true;
                     return;
                 } else if (rollWidth > 3100) {
-                    unitPrice = currentProduct.price_xlarge || currentProduct.unit_price;
+                    unitPrice = (currentProduct.price_xlarge > 0) ? currentProduct.price_xlarge : currentProduct.unit_price;
                     widthType = '초장폭';
                     widthInfoBox.className = 'p-3 rounded-lg border bg-purple-50 border-purple-200';
                 } else if (rollWidth > 2100) {
-                    unitPrice = currentProduct.price_large || currentProduct.unit_price;
+                    unitPrice = (currentProduct.price_large > 0) ? currentProduct.price_large : currentProduct.unit_price;
                     widthType = '장폭';
                     widthInfoBox.className = 'p-3 rounded-lg border bg-orange-50 border-orange-200';
                 } else {
-                    unitPrice = currentProduct.price_small || currentProduct.unit_price;
+                    unitPrice = (currentProduct.price_small > 0) ? currentProduct.price_small : currentProduct.unit_price;
                     widthType = '단폭';
                     widthInfoBox.className = 'p-3 rounded-lg border bg-green-50 border-green-200';
                 }
@@ -514,10 +517,21 @@ foreach ($categories as $cat) {
                     surchargeText = ` + 할증 ${currentProduct.width_surcharge_1800.toLocaleString()}원`;
                 }
 
-                widthInfoText.innerHTML = `폭 ${rollWidth}mm → <strong>${widthType}</strong> 적용 (㎡당 ${unitPrice.toLocaleString()}원${surchargeText})`;
+                widthInfoText.innerHTML = `폭 ${rollWidth}mm → <strong>${widthType}</strong> 단가 적용 (㎡당 ${unitPrice.toLocaleString()}원${surchargeText})`;
                 widthInfoDiv.classList.remove('hidden');
+
+                // 견적 결과 폭 기준 표시
+                const widthTypeDiv = document.getElementById('result-width-type');
+                const widthTypeText = document.getElementById('result-width-text');
+                if (widthType && widthType !== '제작불가') {
+                    widthTypeText.textContent = `폭 기준: ${widthType} 단가 적용`;
+                    widthTypeDiv.classList.remove('hidden');
+                } else {
+                    widthTypeDiv.classList.add('hidden');
+                }
             } else {
                 widthInfoDiv.classList.add('hidden');
+                document.getElementById('result-width-type').classList.add('hidden');
             }
 
             if (area > 0) {

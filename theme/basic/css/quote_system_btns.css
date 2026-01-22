@@ -1,0 +1,149 @@
+/* Quote System Design System - Buttons & Layout */
+
+:root {
+    --quote-primary: #FF6B2C;
+    --quote-text-dark: #212529;
+    --quote-text-gray: #868E96;
+    --quote-border: #DEE2E6;
+    --quote-bg-light: #F8F9FA;
+    --quote-footer-bg: #FFFFFF;
+    --quote-footer-border: #E9ECEF;
+}
+
+/* Sticky Footer Container */
+.quote-footer-sticky {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--quote-footer-bg);
+    border-top: 1px solid var(--quote-footer-border);
+    padding: 20px 40px;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s ease;
+}
+
+.quote-footer-inner {
+    max-width: 1600px;
+    margin: 0 auto;
+    width: 100%;
+    display: flex;
+    gap: 12px;
+}
+
+/* Base Button Styles */
+.btn-quote-base {
+    height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: 1px solid transparent;
+    text-decoration: none !important;
+}
+
+.btn-quote-base:active {
+    transform: scale(0.98);
+}
+
+/* Specific Button Variants */
+.btn-quote-list,
+.btn-quote-temp {
+    background-color: #FFFFFF;
+    border-color: var(--quote-border);
+    color: var(--quote-text-gray);
+    padding: 0 20px;
+}
+
+.btn-quote-list:hover,
+.btn-quote-temp:hover {
+    background-color: var(--quote-bg-light);
+    border-color: #adb5bd;
+}
+
+.btn-quote-prev {
+    background-color: var(--quote-text-gray);
+    color: #FFFFFF;
+    padding: 0 32px;
+}
+
+.btn-quote-prev:hover {
+    background-color: #495057;
+}
+
+.btn-quote-next {
+    background-color: var(--quote-primary);
+    color: #FFFFFF;
+    padding: 0 32px;
+    font-weight: 600;
+}
+
+.btn-quote-next:hover {
+    background-color: #E85A1B;
+    box-shadow: 0 4px 12px rgba(255, 107, 44, 0.2);
+}
+
+.btn-quote-final {
+    background-color: var(--quote-primary);
+    color: #FFFFFF;
+    height: 52px;
+    padding: 0 40px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.btn-quote-final:hover {
+    background-color: #E85A1B;
+    box-shadow: 0 6px 16px rgba(255, 107, 44, 0.3);
+}
+
+/* Icons */
+.btn-quote-base i {
+    font-size: 14px;
+}
+
+.btn-quote-list i,
+.btn-quote-prev i {
+    margin-right: 8px;
+}
+
+.btn-quote-next i,
+.btn-quote-final i {
+    margin-left: 8px;
+}
+
+/* Mobile Adaptations */
+@media (max-width: 768px) {
+    .quote-footer-sticky {
+        padding: 12px 16px;
+    }
+
+    .quote-footer-inner {
+        gap: 8px;
+    }
+
+    .btn-quote-base {
+        height: 52px;
+        flex: 1;
+        font-size: 14px;
+        padding: 0 12px;
+    }
+
+    .btn-quote-list,
+    .btn-quote-prev {
+        flex: 0.6;
+    }
+
+    .btn-quote-next,
+    .btn-quote-final,
+    .btn-quote-temp {
+        flex: 1.2;
+    }
+}

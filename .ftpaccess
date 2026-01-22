@@ -1,0 +1,10 @@
+<Limit ALL>
+Allow 125.128.225.100
+Allow 114.205.111.103
+Allow 61.99.187.140
+Allow 180.231.135.109
+Allow 203.237.200.57
+Allow 119.192.94.57
+Allow 127.0.0.1
+DenyAll
+</Limit>

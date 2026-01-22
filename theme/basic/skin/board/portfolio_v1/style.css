@@ -1,0 +1,15 @@
+/* Portfolio Board Style */
+body {
+    font-family: 'Pretendard', sans-serif;
+}
+
+#bo_v_con img {
+    max-width: 100% !important;
+    height: auto !important;
+    border-radius: 8px;
+}
+
+.bo_v_con img {
+    max-width: 100% !important;
+    height: auto !important;
+}

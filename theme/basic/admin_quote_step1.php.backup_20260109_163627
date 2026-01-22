@@ -1,0 +1,701 @@
+<?php
+include_once('./_common.php');
+
+
+// ============================================================================
+// Load Common Libraries
+// ============================================================================
+include_once('./includes/quote_functions.php');
+include_once('./includes/quote_db_schema.php');
+
+// ============================================================================
+// DB Initialization
+// ============================================================================
+init_quote_tables();
+
+// ============================================================================
+// Admin Check (moved here for clarity)
+// ============================================================================
+// 1. Admin Check
+if (!$is_admin) {
+    alert('관리자만 접근 가능합니다.', G5_URL);
+}
+
+// 2. DB Initialization - Create tables if not exist
+
+// -----------------------------------------------------------------------------
+// Controller Logic
+// -----------------------------------------------------------------------------
+$w = isset($_REQUEST['w']) ? trim($_REQUEST['w']) : '';
+$qa_id = isset($_REQUEST['qa_id']) ? (int) $_REQUEST['qa_id'] : 0;
+
+// AJAX: Manage Sign Types
+if ($w == 'ajax_sign_types') {
+    $action = isset($_POST['action']) ? $_POST['action'] : 'list';
+    $sign_types_file = G5_DATA_PATH . '/sign_types.json';
+
+    // Load existing sign types
+    $sign_types = [];
+    if (file_exists($sign_types_file)) {
+        $sign_types = json_decode(file_get_contents($sign_types_file), true) ?: [];
+    }
+
+    if ($action == 'list') {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true, 'types' => $sign_types], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if ($action == 'add') {
+        $new_type = trim($_POST['type_name']);
+        if ($new_type && !in_array($new_type, $sign_types)) {
+            $sign_types[] = $new_type;
+            file_put_contents($sign_types_file, json_encode($sign_types, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true, 'types' => $sign_types], JSON_UNESCAPED_UNICODE);
+        } else {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => '이미 존재하거나 빈 값입니다'], JSON_UNESCAPED_UNICODE);
+        }
+        exit;
+    }
+
+    if ($action == 'delete') {
+        $type_to_delete = $_POST['type_name'];
+        $sign_types = array_values(array_filter($sign_types, function ($t) use ($type_to_delete) {
+            return $t != $type_to_delete;
+        }));
+        file_put_contents($sign_types_file, json_encode($sign_types, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true, 'types' => $sign_types], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if ($action == 'update') {
+        $old_name = $_POST['old_name'];
+        $new_name = trim($_POST['new_name']);
+        if ($new_name) {
+            $key = array_search($old_name, $sign_types);
+            if ($key !== false) {
+                $sign_types[$key] = $new_name;
+                file_put_contents($sign_types_file, json_encode($sign_types, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+                header('Content-Type: application/json');
+                echo json_encode(['success' => true, 'types' => $sign_types], JSON_UNESCAPED_UNICODE);
+            } else {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false], JSON_UNESCAPED_UNICODE);
+            }
+        }
+        exit;
+    }
+}
+
+// Save Quote Step 1
+if ($w == 'save') {
+    check_quote_token();
+
+    $qa_subject = $_POST['qa_subject'];
+    $qa_client_name = $_POST['qa_client_name'];
+    $qa_client_hp = $_POST['qa_client_hp'];
+    $qa_client_contact = $_POST['qa_client_contact'];
+    $qa_client_email = $_POST['qa_client_email'];
+    $qa_client_addr = $_POST['qa_client_addr'];
+    $qa_client_addr2 = $_POST['qa_client_addr2'];
+    $qa_status = $_POST['qa_status'] ?? '작성중';
+
+    // Measure items
+    $qm_type = $_POST['qm_type'] ?? [];
+    $qm_width = $_POST['qm_width'] ?? [];
+    $qm_height = $_POST['qm_height'] ?? [];
+    $qm_qty = $_POST['qm_qty'] ?? [];
+    $qm_memo = $_POST['qm_memo'] ?? [];
+
+    // [NEW] Global Memos
+    $qa_memo = $_POST['qa_memo'] ?? '';
+    $qa_memo_user = $_POST['qa_memo_user'] ?? '';
+    // [NEW] Company Name
+    $qa_tax_company_name = $_POST['qa_tax_company_name'] ?? '';
+
+    // Image Upload Dir
+    $upload_dir = G5_DATA_PATH . '/quote';
+    if (!is_dir($upload_dir)) {
+        @mkdir($upload_dir, G5_DIR_PERMISSION, true);
+        @chmod($upload_dir, G5_DIR_PERMISSION);
+    }
+
+    $sql_common = " qa_subject = '$qa_subject',
+                    qa_client_name = '$qa_client_name',
+                    qa_client_hp = '$qa_client_hp',
+                    qa_client_contact = '$qa_client_contact',
+                    qa_client_email = '$qa_client_email',
+                    qa_client_addr = '$qa_client_addr',
+                    qa_client_addr2 = '$qa_client_addr2',
+                    qa_status = '$qa_status',
+                    qa_memo = '$qa_memo',
+                    qa_memo_user = '$qa_memo_user',
+                    qa_tax_company_name = '$qa_tax_company_name' ";
+
+    if (!$qa_id) {
+        // Create new quote
+        $today_prefix = 'Q-' . date('Ymd') . '-';
+        $row = sql_fetch(" SELECT count(*) as cnt FROM g5_quote WHERE qa_code LIKE '{$today_prefix}%' ");
+        $seq = $row['cnt'] + 1;
+        $new_code = $today_prefix . sprintf('%03d', $seq);
+
+        $sql = " INSERT INTO g5_quote SET 
+                 qa_code = '$new_code', 
+                 qa_datetime = '" . G5_TIME_YMDHIS . "',
+                 qa_price_supply = 0,
+                 qa_price_vat = 0,
+                 qa_price_total = 0,
+                 $sql_common ";
+        sql_query($sql);
+        $qa_id = sql_insert_id();
+    } else {
+        // Update existing quote
+        $sql = " UPDATE g5_quote SET $sql_common WHERE qa_id = '$qa_id' ";
+        sql_query($sql);
+
+        // Delete old measure data
+        sql_query(" DELETE FROM g5_quote_measure WHERE qa_id = '$qa_id' ");
+    }
+
+    // Save measure items
+    $measure_data = [];
+    for ($i = 0; $i < count($qm_type); $i++) {
+        if (!trim($qm_type[$i]))
+            continue;
+
+        // Image Handling
+        $img_files = [];
+        for ($m = 1; $m <= 2; $m++) {
+            $f_name = "qm_img$m";
+            $del_name = "qm_img{$m}_del";
+            $prev_name = "qm_img{$m}_prev";
+
+            $saved_file = $_POST[$prev_name][$i] ?? '';
+
+            // Delete?
+            if (isset($_POST[$del_name][$i]) && $_POST[$del_name][$i] == '1') {
+                if ($saved_file && file_exists($upload_dir . '/' . $saved_file)) {
+                    @unlink($upload_dir . '/' . $saved_file);
+                }
+                $saved_file = '';
+            }
+
+            // Upload?
+            if (isset($_FILES[$f_name]['name'][$i]) && $_FILES[$f_name]['name'][$i]) {
+                $ext = strtolower(pathinfo($_FILES[$f_name]['name'][$i], PATHINFO_EXTENSION));
+                if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                    $new_name = 'measure_' . date('YmdHis') . "_" . $i . "_" . $m . "_" . rand(1000, 9999) . "." . $ext;
+                    if (move_uploaded_file($_FILES[$f_name]['tmp_name'][$i], $upload_dir . '/' . $new_name)) {
+                        // Delete old if replaced
+                        if ($saved_file && $saved_file != $new_name && file_exists($upload_dir . '/' . $saved_file)) {
+                            @unlink($upload_dir . '/' . $saved_file);
+                        }
+                        $saved_file = $new_name;
+                    }
+                }
+            }
+            $img_files[$m] = $saved_file;
+        }
+
+        $measure_data[] = [
+            'type' => $qm_type[$i],
+            'width' => $qm_width[$i],
+            'height' => $qm_height[$i],
+            'qty' => (int) $qm_qty[$i],
+            'memo' => $qm_memo[$i] ?? '',
+            'img1' => $img_files[1],
+            'img2' => $img_files[2]
+        ];
+    }
+
+    foreach ($measure_data as $k => $v) {
+        $sql = " INSERT INTO g5_quote_measure SET
+                 qa_id = '$qa_id',
+                 qm_index = '$k',
+                 qm_type = '{$v['type']}',
+                 qm_width = '{$v['width']}',
+                 qm_height = '{$v['height']}',
+                 qm_qty = '{$v['qty']}',
+                 qm_memo = '{$v['memo']}',
+                 qm_img1 = '{$v['img1']}',
+                 qm_img2 = '{$v['img2']}' ";
+        sql_query($sql);
+    }
+
+    // Redirect
+    $next_step = isset($_POST['next_step']) ? (int) $_POST['next_step'] : 0;
+    $redirect_to_list = isset($_POST['redirect_to_list']) ? (int) $_POST['redirect_to_list'] : 0;
+    $redirect_url = isset($_POST['redirect_url']) ? trim($_POST['redirect_url']) : '';
+
+    if ($next_step == 2) {
+        goto_url("./admin_quote.php?w=form&qa_id=$qa_id&from_step1=1");
+    } elseif ($redirect_to_list) {
+        goto_url("./admin_quote.php");
+    } elseif ($redirect_url) {
+        goto_url($redirect_url);
+    } else {
+        goto_url("./admin_quote_step1.php?w=form&qa_id=$qa_id&saved=1");
+    }
+}
+
+// Load existing quote data
+$quote = null;
+$measures = [];
+
+if ($qa_id) {
+    $quote = sql_fetch(" SELECT * FROM g5_quote WHERE qa_id = '$qa_id' ");
+    if ($quote) {
+        // Load measure data
+        $result = sql_query(" SELECT * FROM g5_quote_measure WHERE qa_id = '$qa_id' ORDER BY qm_index ");
+        while ($row = sql_fetch_array($result)) {
+            $measures[] = $row;
+        }
+    }
+}
+
+// Load business config for status list
+$biz_file = G5_DATA_PATH . '/quote_config.json';
+$biz_info = file_exists($biz_file) ? json_decode(file_get_contents($biz_file), true) : [];
+
+// Load sign types
+$sign_types_file = G5_DATA_PATH . '/sign_types.json';
+$sign_types = [];
+if (file_exists($sign_types_file)) {
+    $sign_types = json_decode(file_get_contents($sign_types_file), true) ?: [];
+}
+if (empty($sign_types)) {
+    $sign_types = ['채널간판', '플렉스', '유리시트', '현수막', '기타'];
+}
+
+// Generate Token
+$token = get_quote_token();
+
+include_once(G5_THEME_PATH . '/head.php');
+include_once(G5_THEME_PATH . '/admin_quote_header.php');
+?>
+<div class="max-w-[1400px] mx-auto px-4 pb-20">
+    <div class="grid grid-cols-10 gap-8">
+        <!-- Main Content Area (7/10) -->
+        <div class="col-span-10 lg:col-span-7">
+            <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+
+
+
+
+
+            <!-- Main Form -->
+            <form id="step1Form" method="post" enctype="multipart/form-data" onsubmit="return beforeSubmit()">
+                <input type="hidden" name="w" value="save">
+                <input type="hidden" name="token" value="<?php echo $token; ?>">
+                <input type="hidden" name="qa_id" value="<?php echo $qa_id; ?>">
+                <input type="hidden" name="next_step" id="next_step" value="0">
+
+                <!-- Basic Info Section -->
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                    <div
+                        class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 border-b pb-4 gap-4">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-info-circle text-orange-600"></i>
+                            기본 정보
+                        </h2>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <?php if (isset($quote['qa_code']) && $quote['qa_code']): ?>
+                                <span class="px-2 py-1 bg-gray-100 rounded text-xs font-mono text-gray-500 font-bold">No.
+                                    <?php echo $quote['qa_code']; ?></span>
+                            <?php endif; ?>
+
+                            <!-- Compact Status Field -->
+                            <div
+                                class="flex items-center gap-2 bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100">
+                                <label class="text-xs font-bold text-orange-700">상태</label>
+                                <div class="relative w-32">
+                                    <select id="qa_status_select" onchange="handle_status_change(this)"
+                                        class="w-full text-xs p-1 border border-orange-200 rounded focus:ring-1 focus:ring-orange-500 font-bold bg-white text-gray-700">
+                                        <?php
+                                        $default_statuses = '작성중,견적발송,연락두절,계약완료,작업중,작업완료,취소';
+                                        $status_list = array_map('trim', explode(',', $biz_info['custom_statuses'] ?? $default_statuses));
+                                        $current_status = $quote['qa_status'] ?? '작성중';
+
+                                        // 등록완료 상태여도 변경 가능하도록 리스트에 임시 추가
+                                        if ($current_status == '등록완료' && !in_array('등록완료', $status_list)) {
+                                            $status_list[] = '등록완료';
+                                        }
+
+                                        $is_custom = !in_array($current_status, $status_list);
+
+                                        foreach ($status_list as $status) {
+                                            $status = trim($status);
+                                            if (empty($status))
+                                                continue;
+                                            $selected = ($status == $current_status && !$is_custom) ? 'selected' : '';
+                                            echo "<option value='{$status}' {$selected}>{$status}</option>";
+                                        }
+                                        ?>
+                                        <option value="__custom__" <?php echo $is_custom ? 'selected' : ''; ?>>➕ 직접
+                                            입력...
+                                        </option>
+                                    </select>
+                                    <input type="text" name="qa_status" id="qa_status_input"
+                                        value="<?php echo $current_status; ?>" placeholder="상태 입력"
+                                        class="<?php echo $is_custom ? '' : 'hidden'; ?> absolute inset-0 w-full text-xs p-1 border border-orange-200 rounded focus:ring-1 focus:ring-orange-500 font-bold bg-white text-gray-700">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-12 gap-4">
+                        <!-- Quote Subject -->
+                        <div class="col-span-12">
+                            <label class="block text-xs font-bold text-gray-600 mb-1">견적명 (제목)</label>
+                            <input type="text" name="qa_subject" value="<?php echo $quote['qa_subject'] ?? ''; ?>"
+                                class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm font-bold"
+                                placeholder="예: 강남점 외부 간판 제작 및 시공" required>
+                        </div>
+
+                        <!-- [NEW] Company Name (상호) - Moved First -->
+                        <div class="col-span-12 lg:col-span-5">
+                            <label class="block text-xs font-bold text-gray-600 mb-1">상호 (업체명)</label>
+                            <input type="text" name="qa_tax_company_name"
+                                value="<?php echo $quote['qa_tax_company_name'] ?? ''; ?>"
+                                class="w-full compact-input border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                                placeholder="예: 간판대학 강남점">
+                        </div>
+
+                        <!-- Client Name - Smaller -->
+                        <div class="col-span-12 lg:col-span-3">
+                            <label class="block text-xs font-bold text-gray-600 mb-1">고객명 (담당자) <span
+                                    class="text-red-500">*</span></label>
+                            <input type="text" name="qa_client_name"
+                                value="<?php echo $quote['qa_client_name'] ?? ''; ?>" required
+                                class="w-full compact-input border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                                placeholder="홍길동">
+                        </div>
+
+                        <!-- Phone - Remaining space -->
+                        <div class="col-span-12 lg:col-span-4">
+                            <label class="block text-xs font-bold text-gray-600 mb-1">연락처(HP) <span
+                                    class="text-red-500">*</span></label>
+                            <input type="tel" name="qa_client_hp" id="qa_client_hp"
+                                value="<?php echo $quote['qa_client_hp'] ?? ''; ?>" required
+                                class="w-full compact-input border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                                placeholder="010-1234-5678" onkeyup="formatPhoneNumber(this)">
+                        </div>
+
+
+                        <!-- Contact (hidden) -->
+                        <div class="col-span-12 lg:col-span-6 hidden">
+                            <label class="block text-xs font-bold text-gray-600 mb-1">기타 연락처</label>
+                            <input type="text" name="qa_client_contact"
+                                value="<?php echo $quote['qa_client_contact'] ?? ''; ?>"
+                                class="w-full compact-input border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm">
+                        </div>
+
+                        <!-- Address (Reduced width) -->
+                        <div class="col-span-12 lg:col-span-8">
+                            <label class="block text-xs font-bold text-gray-600 mb-1">주소</label>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div class="flex gap-2">
+                                    <input type="text" name="qa_client_addr" id="qa_client_addr"
+                                        value="<?php echo $quote['qa_client_addr'] ?? ''; ?>"
+                                        class="w-full compact-input border border-gray-300 rounded-lg bg-gray-50 focus:bg-white text-sm"
+                                        placeholder="주소 검색" readonly>
+                                    <button type="button" onclick="execDaumPostcode()"
+                                        class="bg-gray-700 text-white px-4 rounded-lg text-sm font-bold hover:bg-gray-800 whitespace-nowrap shadow-sm">검색</button>
+                                </div>
+                                <input type="text" name="qa_client_addr2" id="qa_client_addr2"
+                                    value="<?php echo $quote['qa_client_addr2'] ?? ''; ?>"
+                                    class="w-full compact-input border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                                    placeholder="상세주소 (동/호수/층)">
+                            </div>
+                        </div>
+
+                        <!-- Email (Moved next to Address) -->
+                        <div class="col-span-12 lg:col-span-4">
+                            <label class="block text-xs font-bold text-gray-400 mb-1">이메일</label>
+                            <input type="email" name="qa_client_email"
+                                value="<?php echo $quote['qa_client_email'] ?? ''; ?>"
+                                class="w-full compact-input border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-xs py-2"
+                                placeholder="example@email.com">
+                        </div>
+                        <!-- Daum Layer -->
+                        <div id="wrap"
+                            style="display:none;border:1px solid;width:500px;height:300px;margin:5px 0;position:relative">
+                            <img src="//t1.daumcdn.net/postcode/resource/images/close.png" id="btnFoldWrap"
+                                style="cursor:pointer;position:absolute;right:0px;top:-1px;z-index:1"
+                                onclick="foldDaumPostcode()" alt="접기 버튼">
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Measure Items Section -->
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-ruler-combined text-orange-600"></i>
+                            현장 측정 기록
+                        </h2>
+                        <button type="button" onclick="addMeasureRow()"
+                            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+                            <i class="fas fa-plus"></i> 항목 추가
+                        </button>
+                    </div>
+
+                    <div id="measure_items">
+                        <?php if (count($measures) > 0): ?>
+                            <?php foreach ($measures as $idx => $m): ?>
+                                <div class="measure-row border border-gray-200 rounded-lg p-4 mb-3 bg-gray-50"
+                                    data-index="<?php echo $idx; ?>">
+                                    <div class="flex flex-col md:flex-row items-start gap-3">
+                                        <div class="flex-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 w-full">
+                                            <!-- Type -->
+                                            <div class="col-span-2">
+                                                <label class="block text-xs font-semibold text-gray-600 mb-1">
+                                                    간판 종류
+                                                    <button type="button" onclick="openSignTypeModal()"
+                                                        class="ml-2 text-orange-600 hover:text-orange-700" title="간판 종류 관리">
+                                                        <i class="fas fa-cog"></i>
+                                                    </button>
+                                                </label>
+                                                <div class="relative">
+                                                    <input type="text" name="qm_type[]" value="<?php echo $m['qm_type']; ?>"
+                                                        class="w-full px-3 py-2.5 md:py-2 border border-gray-300 rounded text-sm md:text-base focus:ring-2 focus:ring-orange-500"
+                                                        placeholder="직접 입력 (예: 스타렉스 7호차)">
+                                                </div>
+                                            </div>
+
+                                            <!-- Width -->
+                                            <div class="col-span-1">
+                                                <label class="block text-xs font-semibold text-gray-600 mb-1">가로(W)</label>
+                                                <input type="text" name="qm_width[]" value="<?php echo $m['qm_width']; ?>"
+                                                    placeholder="450"
+                                                    class="w-full px-3 py-2.5 md:py-2 border border-gray-300 rounded text-sm md:text-base">
+                                            </div>
+
+                                            <!-- Height -->
+                                            <div class="col-span-1">
+                                                <label class="block text-xs font-semibold text-gray-600 mb-1">세로(H)</label>
+                                                <input type="text" name="qm_height[]" value="<?php echo $m['qm_height']; ?>"
+                                                    placeholder="450"
+                                                    class="w-full px-3 py-2.5 md:py-2 border border-gray-300 rounded text-sm md:text-base">
+                                            </div>
+
+                                            <!-- Qty -->
+                                            <div class="col-span-1">
+                                                <label class="block text-xs font-semibold text-gray-600 mb-1">수량</label>
+                                                <input type="number" name="qm_qty[]" value="<?php echo $m['qm_qty']; ?>"
+                                                    class="w-full px-3 py-2.5 md:py-2 border border-gray-300 rounded text-sm md:text-base">
+                                            </div>
+
+                                            <!-- Memo -->
+                                            <div class="col-span-2 sm:col-span-1">
+                                                <label class="block text-xs font-semibold text-gray-600 mb-1">메모</label>
+                                                <input type="text" name="qm_memo[]" value="<?php echo $m['qm_memo']; ?>"
+                                                    placeholder="메모"
+                                                    class="w-full px-3 py-2.5 md:py-2 border border-gray-300 rounded text-sm md:text-base">
+                                            </div>
+                                        </div>
+
+                                        <button type="button" onclick="removeMeasureRow(this)"
+                                            class="w-full md:w-auto mt-2 md:mt-6 px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+                                            <i class="fas fa-trash"></i> <span class="md:hidden">삭제</span>
+                                        </button>
+                                    </div>
+
+                                    <!-- Images -->
+                                    <div class="mt-3 grid grid-cols-2 gap-3">
+                                        <?php for ($img_idx = 1; $img_idx <= 2; $img_idx++): ?>
+                                            <div>
+                                                <label class="block text-xs font-semibold text-gray-600 mb-2">사진
+                                                    <?php echo $img_idx; ?></label>
+                                                <input type="hidden" name="qm_img<?php echo $img_idx; ?>_prev[]"
+                                                    value="<?php echo $m['qm_img' . $img_idx]; ?>">
+                                                <input type="hidden" name="qm_img<?php echo $img_idx; ?>_del[]" value="0"
+                                                    class="img-del-flag">
+                                                <label class="cursor-pointer block">
+                                                    <span
+                                                        class="inline-flex items-center justify-center w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+                                                        <i class="fas fa-camera mr-2"></i>
+                                                        <span class="filename-display-<?php echo $img_idx; ?>">파일 선택</span>
+                                                    </span>
+                                                    <input type="file" name="qm_img<?php echo $img_idx; ?>[]" accept="image/*"
+                                                        class="hidden img-file-input" data-index="<?php echo $img_idx; ?>"
+                                                        onchange="handleImagePreview(this)">
+                                                </label>
+
+                                                <!-- Image Preview Container -->
+                                                <div class="preview-container mt-2 relative inline-block">
+                                                    <?php if ($m['qm_img' . $img_idx]): ?>
+                                                        <img src="<?php echo G5_DATA_URL . '/quote/' . $m['qm_img' . $img_idx]; ?>"
+                                                            class="w-20 h-20 object-cover rounded border">
+                                                        <button type="button" onclick="deleteImage(this)"
+                                                            class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600 flex items-center justify-center">×</button>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                        <?php endfor; ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="text-center text-gray-500 py-8">
+                                "항목 추가" 버튼을 클릭하여 현장 측정 데이터를 입력하세요
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+
+
+                <!-- Section 3: Memos -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                                🔒 내부 메모 <span class="text-xs font-normal text-gray-400">(고객 노출 X)</span>
+                            </h3>
+                            <textarea name="qa_memo"
+                                class="w-full h-32 p-3 border border-gray-200 rounded-lg bg-yellow-50/50 resize-none text-sm placeholder-gray-400 focus:bg-white focus:border-orange-500 transition"
+                                placeholder="관리자 전용 메모입니다."><?php echo $quote['qa_memo']; ?></textarea>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                                📢 고객 참고사항 <span class="text-xs font-normal text-orange-500">(견적서 하단 표시)</span>
+                            </h3>
+                            <textarea name="qa_memo_user"
+                                class="w-full h-32 p-3 border border-gray-200 rounded-lg resize-none text-sm placeholder-gray-400 focus:border-orange-500 transition"
+                                placeholder="시공 일정, 입금 계좌 등 고객에게 알릴 내용을 입력하세요."><?php echo $quote['qa_memo_user']; ?></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-3 justify-end mt-8">
+                    <button type="button" onclick="go_list_safe()"
+                        class="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-bold shadow-sm">
+                        <i class="fas fa-list mr-2"></i> 목록
+                    </button>
+                    <button type="button" onclick="open_save_confirm()"
+                        class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-bold shadow-sm">
+                        <i class="fas fa-save mr-2"></i> 저장
+                    </button>
+                    <button type="button" onclick="goToStep2()"
+                        class="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition font-bold shadow-sm">
+                        다음 (2단계로) <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </form>
+        </div><!-- /.lg:col-span-7 -->
+
+        <!-- Side Dashboard Area (3/10) -->
+        <div class="col-span-10 lg:col-span-3">
+            <?php include_once(G5_THEME_PATH . '/admin_quote_sidebar.php'); ?>
+        </div>
+    </div><!-- /.grid -->
+</div><!-- /.max-w -->
+
+        <!-- Sign Type Management Modal -->
+        <div id="signTypeModal"
+            class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-[500px]">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold">간판 종류 관리</h3>
+                    <button type="button" onclick="closeSignTypeModal()" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="newSignTypeName"
+                        class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" placeholder="새 간판 종류 이름"
+                        onkeypress="if(event.key === 'Enter') addSignType()">
+                    <button type="button" onclick="addSignType()"
+                        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm font-bold">
+                        <i class="fas fa-plus"></i> 추가
+                    </button>
+                </div>
+
+                <div id="signTypeList" class="border border-gray-200 rounded max-h-[300px] overflow-y-auto mb-4">
+                    <!-- List items will be loaded here -->
+                </div>
+
+                <div class="text-right">
+                    <button type="button" onclick="closeSignTypeModal()"
+                        class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300 text-sm font-bold">
+                        닫기
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+    </div>
+
+    
+    </div>
+
+    <!-- Custom Confirm Modal (Updated Design) -->
+    <div id="back_confirm_modal_safe" class="hidden fixed inset-0 z-[99999]" role="dialog" aria-modal="true">
+
+        <!-- Flex Container for Centering -->
+        <div class="fixed inset-0 z-[100000] flex items-center justify-center p-4" style="pointer-events: none;">
+
+            <!-- Overlay -->
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"
+                style="z-index: 99998 !important; pointer-events: auto;" onclick="close_back_confirm()"></div>
+
+            <!-- Modal Panel -->
+            <div class="bg-white rounded-2xl overflow-hidden shadow-2xl transform transition-all w-full max-w-sm relative"
+                style="z-index: 100000 !important; pointer-events: auto;">
+                <div class="bg-white px-6 pt-8 pb-6 text-center">
+                    <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-orange-50 mb-5">
+                        <svg class="h-10 w-10 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-4">변경사항 저장</h3>
+                    <p class="text-sm text-gray-600 leading-relaxed">
+                        작성 중인 내용이 저장되지 않았습니다.<br>
+                        저장 후 이동하시겠습니까?
+                    </p>
+                </div>
+                <div class="bg-white px-5 pb-5 flex flex-col gap-2.5">
+                    <button type="button" onclick="confirm_back_save()"
+                        class="w-full inline-flex justify-center items-center rounded-xl px-6 py-3.5 bg-orange-500 text-base font-bold text-white hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition shadow-sm">
+                        예 (저장)
+                    </button>
+                    <button type="button" onclick="confirm_back_nosave()"
+                        class="w-full inline-flex justify-center items-center rounded-xl px-6 py-3 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 border border-gray-200 focus:outline-none transition">
+                        아니요 (저장안함)
+                    </button>
+                    <button type="button" onclick="close_back_confirm()"
+                        class="w-full inline-flex justify-center items-center rounded-xl px-6 py-2.5 bg-white text-sm font-medium text-gray-500 hover:text-gray-700 transition">
+                        취소
+                    </button>
+                </div>
+            </div>
+        </div>
+        </div>
+
+    
+        </div>
+    </div>
+
+    <!-- Load External JavaScript -->
+<script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+<script src="./assets/js/admin_quote_step1.js"></script>
+
+<!-- Load Modal Components -->
+<?php include_once('./views/partials/modals/confirm_modal.php'); ?>
+<?php include_once('./views/partials/modals/save_confirm_modal.php'); ?>
+<?php include_once('./views/partials/modals/back_confirm_modal.php'); ?>
+<?php include_once('./views/partials/modals/sign_type_modal.php'); ?>
+
+<?php
+include_once(G5_THEME_PATH . '/tail.php');
+    ?>

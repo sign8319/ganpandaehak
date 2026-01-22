@@ -1,0 +1,419 @@
+
+[2026-01-09 15:12:20] step3_update START
+POST: Array
+(
+    [w] => step3_update
+    [qa_id] => 0
+    [token] => b358791fc58cff35196f1e6182ca11a2
+    [qa_subject] => 123123
+    [qa_tax_company_name] => 
+    [qa_client_name] => 13213
+    [qa_client_hp] => 131-2312-3213
+    [qa_client_email] => 
+    [qa_client_addr] => 
+    [qa_client_addr2] => 
+    [qa_construct_date] => 
+    [qa_deposit_status] => 입금대기
+    [qa_payment_method] => 현금
+    [qa_tax_yn] => N
+    [qa_tax_type] => 01
+    [qa_tax_date] => 2026-01-09
+    [qa_tax_claim_type] => 01
+    [qa_tax_trade_name] => 
+    [qa_tax_ceo_name] => 
+    [qa_tax_email] => 
+    [qa_tax_biz_num] => 
+    [qa_tax_addr] => 
+    [qa_tax_item_name] => 간판작업 1식
+    [qa_tax_supply_price] => 0
+    [qa_tax_vat_price] => 0
+)
+
+INSERT SQL:  INSERT INTO g5_quote SET 
+                    qa_code = 'Q260109699',
+                    qa_subject = '123123',
+                    qa_client_name = '13213',
+                    qa_client_hp = '131-2312-3213',
+                    qa_client_email = '',
+                    qa_client_addr = '',
+                    qa_client_addr2 = '',
+                    qa_tax_company_name = '',
+                    mb_id = 'ganpandaehak',
+                    qa_datetime = '2026-01-09 15:12:20' 
+INSERT ID: 0
+
+[2026-01-09 15:13:57] step3_update START
+POST: Array
+(
+    [w] => step3_update
+    [qa_id] => 0
+    [token] => b358791fc58cff35196f1e6182ca11a2
+    [qa_subject] => 33333312
+    [qa_tax_company_name] => 
+    [qa_client_name] => 1323123
+    [qa_client_hp] => 132-131-31
+    [qa_client_email] => 
+    [qa_client_addr] => 
+    [qa_client_addr2] => 
+    [qa_construct_date] => 
+    [qa_deposit_status] => 입금대기
+    [qa_payment_method] => 현금
+    [qa_tax_yn] => N
+    [qa_tax_type] => 01
+    [qa_tax_date] => 2026-01-09
+    [qa_tax_claim_type] => 01
+    [qa_tax_trade_name] => 
+    [qa_tax_ceo_name] => 
+    [qa_tax_email] => 
+    [qa_tax_biz_num] => 
+    [qa_tax_addr] => 
+    [qa_tax_item_name] => 간판작업 1식
+    [qa_tax_supply_price] => 0
+    [qa_tax_vat_price] => 0
+)
+
+INSERT SQL:  INSERT INTO g5_quote SET 
+                    qa_code = 'Q260109499',
+                    qa_subject = '33333312',
+                    qa_client_name = '1323123',
+                    qa_client_hp = '132-131-31',
+                    qa_client_email = '',
+                    qa_client_addr = '',
+                    qa_client_addr2 = '',
+                    qa_tax_company_name = '',
+                    mb_id = 'ganpandaehak',
+                    qa_datetime = '2026-01-09 15:13:57' 
+INSERT ID: 0
+ERR: 1364 : Field 'qa_memo_user' doesn't have a default value
+[2026-01-09 15:15:32] step3_update START
+POST: Array
+(
+    [w] => step3_update
+    [qa_id] => 0
+    [token] => b358791fc58cff35196f1e6182ca11a2
+    [qa_subject] => 1233331
+    [qa_tax_company_name] => 
+    [qa_client_name] => 12312312
+    [qa_client_hp] => 321-312-3123
+    [qa_client_email] => 
+    [qa_client_addr] => 
+    [qa_client_addr2] => 
+    [qa_construct_date] => 
+    [qa_deposit_status] => 입금대기
+    [qa_payment_method] => 현금
+    [qa_tax_yn] => N
+    [qa_tax_type] => 01
+    [qa_tax_date] => 2026-01-09
+    [qa_tax_claim_type] => 01
+    [qa_tax_trade_name] => 
+    [qa_tax_ceo_name] => 
+    [qa_tax_email] => 
+    [qa_tax_biz_num] => 
+    [qa_tax_addr] => 
+    [qa_tax_item_name] => 간판작업 1식
+    [qa_tax_supply_price] => 0
+    [qa_tax_vat_price] => 0
+)
+
+INSERT SQL:  INSERT INTO g5_quote SET 
+                    qa_code = 'Q260109956',
+                    qa_subject = '1233331',
+                    qa_client_name = '12312312',
+                    qa_client_hp = '321-312-3123',
+                    qa_client_email = '',
+                    qa_client_addr = '',
+                    qa_client_addr2 = '',
+                    qa_tax_company_name = '',
+                    qa_memo_user = '',
+                    qa_content = '',
+                    qa_status = '신청',
+                    mb_id = 'ganpandaehak',
+                    qa_datetime = '2026-01-09 15:15:32' 
+INSERT ID: 0
+ERR: 1054 : Unknown column 'qa_content' in 'field list'
+[2026-01-09 15:16:56] step3_update START
+POST: Array
+(
+    [w] => step3_update
+    [qa_id] => 0
+    [token] => b358791fc58cff35196f1e6182ca11a2
+    [qa_subject] => 12312312
+    [qa_tax_company_name] => 
+    [qa_client_name] => 21312312
+    [qa_client_hp] => 312-312-3123
+    [qa_client_email] => 
+    [qa_client_addr] => 
+    [qa_client_addr2] => 
+    [qa_construct_date] => 
+    [qa_deposit_status] => 입금대기
+    [qa_payment_method] => 현금
+    [qa_tax_yn] => N
+    [qa_tax_type] => 01
+    [qa_tax_date] => 2026-01-09
+    [qa_tax_claim_type] => 01
+    [qa_tax_trade_name] => 
+    [qa_tax_ceo_name] => 
+    [qa_tax_email] => 
+    [qa_tax_biz_num] => 
+    [qa_tax_addr] => 
+    [qa_tax_item_name] => 간판작업 1식
+    [qa_tax_supply_price] => 0
+    [qa_tax_vat_price] => 0
+)
+
+INSERT SQL:  INSERT INTO g5_quote SET 
+                    qa_code = 'Q260109099',
+                    qa_subject = '12312312',
+                    qa_client_name = '21312312',
+                    qa_client_hp = '312-312-3123',
+                    qa_client_email = '',
+                    qa_client_addr = '',
+                    qa_client_addr2 = '',
+                    qa_tax_company_name = '',
+                    qa_memo_user = '',
+                    mb_id = 'ganpandaehak',
+                    qa_datetime = '2026-01-09 15:16:56' 
+INSERT ID: 58
+
+[2026-01-09 15:18:17] step3_update START
+POST: Array
+(
+    [w] => step3_update
+    [qa_id] => 0
+    [token] => b358791fc58cff35196f1e6182ca11a2
+    [qa_subject] => 제발되나요
+    [qa_tax_company_name] => 
+    [qa_client_name] => 되냐
+    [qa_client_hp] => 010-9777-7777
+    [qa_client_email] => 
+    [qa_client_addr] => 
+    [qa_client_addr2] => 
+    [qa_construct_date] => 
+    [qa_deposit_status] => 입금대기
+    [qa_payment_method] => 현금
+    [qa_tax_yn] => N
+    [qa_tax_type] => 01
+    [qa_tax_date] => 2026-01-09
+    [qa_tax_claim_type] => 01
+    [qa_tax_trade_name] => 
+    [qa_tax_ceo_name] => 
+    [qa_tax_email] => 
+    [qa_tax_biz_num] => 
+    [qa_tax_addr] => 
+    [qa_tax_item_name] => 간판작업 1식
+    [qa_tax_supply_price] => 0
+    [qa_tax_vat_price] => 0
+)
+
+INSERT SQL:  INSERT INTO g5_quote SET 
+                    qa_code = 'Q260109159',
+                    qa_subject = '제발되나요',
+                    qa_client_name = '되냐',
+                    qa_client_hp = '010-9777-7777',
+                    qa_client_email = '',
+                    qa_client_addr = '',
+                    qa_client_addr2 = '',
+                    qa_tax_company_name = '',
+                    qa_memo_user = '',
+                    mb_id = 'ganpandaehak',
+                    qa_datetime = '2026-01-09 15:18:17' 
+INSERT ID: 59
+
+[2026-01-09 15:26:11] step3_update START
+POST: Array
+(
+    [w] => step3_update
+    [qa_id] => 0
+    [token] => b358791fc58cff35196f1e6182ca11a2
+    [qa_subject] => 되냐1
+    [qa_tax_company_name] => 되냐2
+    [qa_client_name] => 되냐3
+    [qa_client_hp] => 131-312-312
+    [qa_client_email] => JKLAJFKLADS@JKDJF.COM
+    [qa_client_addr] => 경기 의정부시 백석로 30
+    [qa_client_addr2] => 102동206호
+    [qa_construct_date] => 
+    [qa_deposit_status] => 입금대기
+    [qa_payment_method] => 현금
+    [qa_tax_yn] => N
+    [qa_tax_type] => 01
+    [qa_tax_date] => 2026-01-09
+    [qa_tax_claim_type] => 01
+    [qa_tax_trade_name] => 
+    [qa_tax_ceo_name] => 
+    [qa_tax_company_name_detail] => 
+    [qa_tax_email] => 
+    [qa_tax_biz_num] => 
+    [qa_tax_addr] => 
+    [qa_tax_item_name] => 간판작업 1식
+    [qa_tax_supply_price] => 0
+    [qa_tax_vat_price] => 0
+)
+
+INSERT SQL:  INSERT INTO g5_quote SET 
+                    qa_code = 'Q260109823',
+                    qa_subject = '되냐1',
+                    qa_client_name = '되냐3',
+                    qa_client_hp = '131-312-312',
+                    qa_client_email = 'JKLAJFKLADS@JKDJF.COM',
+                    qa_client_addr = '경기 의정부시 백석로 30',
+                    qa_client_addr2 = '102동206호',
+                    qa_tax_company_name = '되냐2',
+                    qa_memo_user = '',
+                    mb_id = 'ganpandaehak',
+                    qa_datetime = '2026-01-09 15:26:11' 
+INSERT ID: 60
+
+[2026-01-09 15:31:57] step3_update START
+POST: Array
+(
+    [w] => step3_update
+    [qa_id] => 0
+    [token] => b358791fc58cff35196f1e6182ca11a2
+    [qa_subject] => 1231231
+    [qa_tax_company_name] => 123123
+    [qa_client_name] => 1231231
+    [qa_client_hp] => 131-231-2
+    [qa_client_email] => 
+    [qa_client_addr] => 
+    [qa_client_addr2] => 
+    [qa_construct_date] => 
+    [qa_deposit_status] => 입금대기
+    [qa_payment_method] => 현금
+    [qa_tax_yn] => N
+    [qa_tax_type] => 01
+    [qa_tax_date] => 2026-01-09
+    [qa_tax_claim_type] => 01
+    [qa_tax_trade_name] => 
+    [qa_tax_ceo_name] => 
+    [qa_tax_company_name_detail] => 
+    [qa_tax_email] => 
+    [qa_tax_biz_num] => 
+    [qa_tax_addr] => 
+    [qa_tax_item_name] => 간판작업 1식
+    [qa_tax_supply_price] => 0
+    [qa_tax_vat_price] => 0
+)
+
+INSERT SQL:  INSERT INTO g5_quote SET 
+                    qa_code = 'Q260109098',
+                    qa_subject = '1231231',
+                    qa_client_name = '1231231',
+                    qa_client_hp = '131-231-2',
+                    qa_client_email = '',
+                    qa_client_addr = '',
+                    qa_client_addr2 = '',
+                    qa_tax_company_name = '123123',
+                    qa_memo_user = '',
+                    mb_id = 'ganpandaehak',
+                    qa_datetime = '2026-01-09 15:31:57' 
+INSERT ID: 61
+
+[2026-01-09 15:33:33] step3_update START
+POST: Array
+(
+    [w] => step3_update
+    [qa_id] => 61
+    [token] => b358791fc58cff35196f1e6182ca11a2
+    [qa_subject] => 123123
+    [qa_tax_company_name] => 1132131
+    [qa_client_name] => 131231
+    [qa_client_hp] => 131-231-3
+    [qa_client_email] => 
+    [qa_client_addr] => 
+    [qa_client_addr2] => 
+    [qa_construct_date] => 
+    [qa_deposit_status] => 입금대기
+    [qa_payment_method] => 현금
+    [qa_tax_yn] => N
+    [qa_tax_type] => 01
+    [qa_tax_date] => 2026-01-09
+    [qa_tax_claim_type] => 01
+    [qa_tax_trade_name] => 
+    [qa_tax_ceo_name] => 
+    [qa_tax_company_name_detail] => 123123
+    [qa_tax_email] => 
+    [qa_tax_biz_num] => 
+    [qa_tax_addr] => 
+    [qa_tax_item_name] => 
+    [qa_tax_supply_price] => 0
+    [qa_tax_vat_price] => 0
+)
+
+
+[2026-01-09 15:48:20] step3_update START
+POST: Array
+(
+    [w] => step3_update
+    [qa_id] => 0
+    [token] => b358791fc58cff35196f1e6182ca11a2
+    [qa_subject] => 1231231
+    [qa_tax_company_name] => 12312313
+    [qa_client_name] => 12312321
+    [qa_client_hp] => 131-231-123
+    [qa_client_email] => 
+    [qa_client_addr] => 
+    [qa_client_addr2] => 
+    [qa_construct_date] => 
+    [qa_deposit_status] => 입금대기
+    [qa_payment_method] => 현금
+    [qa_tax_yn] => N
+    [qa_tax_type] => 01
+    [qa_tax_date] => 2026-01-09
+    [qa_tax_claim_type] => 01
+    [qa_tax_trade_name] => 
+    [qa_tax_ceo_name] => 
+    [qa_tax_company_name_detail] => 
+    [qa_tax_email] => 
+    [qa_tax_biz_num] => 
+    [qa_tax_addr] => 
+    [qa_tax_item_name] => 간판작업 1식
+    [qa_tax_supply_price] => 0
+    [qa_tax_vat_price] => 0
+)
+
+INSERT SQL:  INSERT INTO g5_quote SET 
+                    qa_code = 'Q260109246',
+                    qa_subject = '1231231',
+                    qa_client_name = '12312321',
+                    qa_client_hp = '131-231-123',
+                    qa_client_email = '',
+                    qa_client_addr = '',
+                    qa_client_addr2 = '',
+                    qa_tax_company_name = '12312313',
+                    qa_memo_user = '',
+                    mb_id = 'ganpandaehak',
+                    qa_datetime = '2026-01-09 15:48:20' 
+INSERT ID: 62
+
+[2026-01-09 15:49:52] step3_update START
+POST: Array
+(
+    [w] => step3_update
+    [qa_id] => 62
+    [token] => b358791fc58cff35196f1e6182ca11a2
+    [qa_subject] => 123123
+    [qa_tax_company_name] => 123123123
+    [qa_client_name] => 131231
+    [qa_client_hp] => 131-231-23
+    [qa_client_email] => 
+    [qa_client_addr] => 
+    [qa_client_addr2] => 
+    [qa_construct_date] => 
+    [qa_deposit_status] => 입금대기
+    [qa_payment_method] => 현금
+    [qa_tax_yn] => N
+    [qa_tax_type] => 01
+    [qa_tax_date] => 2026-01-09
+    [qa_tax_claim_type] => 01
+    [qa_tax_trade_name] => 
+    [qa_tax_ceo_name] => 
+    [qa_tax_company_name_detail] => 12312313
+    [qa_tax_email] => 
+    [qa_tax_biz_num] => 
+    [qa_tax_addr] => 
+    [qa_tax_item_name] => 
+    [qa_tax_supply_price] => 0
+    [qa_tax_vat_price] => 0
+)
+

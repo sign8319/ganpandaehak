@@ -28,13 +28,33 @@ foreach ($categories as $cat) {
             $opt_sql = "SELECT * FROM g5_quote_options WHERE product_id = {$prod['id']} ORDER BY sort_order ASC";
             $opt_result = sql_query($opt_sql);
             while ($opt = sql_fetch_array($opt_result)) {
-                $option_data = ['name' => $opt['name'], 'price' => (float) $opt['price']];
+                $option_data = [
+                    'name' => $opt['name'],
+                    'price' => (float) $opt['price'],
+                    'unit_type' => $opt['unit_type'] ?? 'fixed',
+                    'free_qty' => (int) ($opt['free_qty'] ?? 0),
+                    'qty_unit_price' => (float) ($opt['qty_unit_price'] ?? 0),
+                    'default_qty' => (int) ($opt['default_qty'] ?? 0)
+                ];
                 if ($opt['discount'] && $opt['discount'] > 0) {
                     $option_data['discount'] = (float) $opt['discount'];
                 }
                 $options[] = $option_data;
             }
-            $product_data = ['name' => $prod['name'], 'unit_price' => (float) $prod['unit_price'], 'unit' => $prod['unit'], 'calc_type' => $prod['calc_type'], 'apply_rounding' => (int) $prod['apply_rounding'], 'description' => $prod['description'], 'options' => $options];
+            $product_data = [
+                'name' => $prod['name'],
+                'unit_price' => (float) $prod['unit_price'],
+                'unit' => $prod['unit'],
+                'calc_type' => $prod['calc_type'],
+                'apply_rounding' => (int) $prod['apply_rounding'],
+                'description' => $prod['description'],
+                'options' => $options,
+                'use_width_pricing' => (int) ($prod['use_width_pricing'] ?? 0),
+                'price_small' => (float) ($prod['price_small'] ?? 0),
+                'price_large' => (float) ($prod['price_large'] ?? 0),
+                'price_xlarge' => (float) ($prod['price_xlarge'] ?? 0),
+                'width_surcharge_1800' => (float) ($prod['width_surcharge_1800'] ?? 0)
+            ];
             if ($prod['min_area']) {
                 $product_data['min_area'] = (float) $prod['min_area'];
             }
@@ -105,6 +125,12 @@ foreach ($categories as $cat) {
                                         id="height"
                                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                                         placeholder="예: 900" oninput="calculate()"></div>
+                            </div>
+                            <!-- 폭 판정 결과 표시 -->
+                            <div id="width-info" class="hidden">
+                                <div class="p-3 rounded-lg border" id="width-info-box">
+                                    <div class="text-sm font-medium" id="width-info-text"></div>
+                                </div>
                             </div>
                         </div>
                         <div id="text-input" class="space-y-4 hidden">
@@ -316,23 +342,82 @@ foreach ($categories as $cat) {
             container.innerHTML = '<p class="text-sm text-gray-500">추가 옵션이 없습니다.</p>';
             return;
         }
-        currentProduct.options.forEach((option) => {
+        currentProduct.options.forEach((option, idx) => {
             const optDiv = document.createElement('div');
             optDiv.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100';
-            const priceText = option.discount ? `${(option.discount * 100).toFixed(1)}% 할인` : `${option.price.toLocaleString()}원 추가`;
+
+            let priceText;
+            if (option.discount) {
+                priceText = `${(option.discount * 100).toFixed(1)}% 할인`;
+            } else if (option.unit_type === 'per_m2') {
+                priceText = `${option.price.toLocaleString()}원/㎡ 추가`;
+            } else if (option.unit_type === 'quantity') {
+                priceText = `${option.free_qty}개 무료, 초과 ${option.qty_unit_price.toLocaleString()}원/개`;
+            } else {
+                priceText = `${option.price.toLocaleString()}원 추가`;
+            }
+
             const label = document.createElement('div');
+            label.className = 'flex-1';
             label.innerHTML = `<span class="text-sm font-medium text-gray-700">${option.name}</span><p class="text-xs text-gray-500">${priceText}</p>`;
+
+            const controls = document.createElement('div');
+            controls.className = 'flex items-center gap-2';
+
+            // 수량형 옵션인 경우 수량 스테퍼 추가
+            if (option.unit_type === 'quantity') {
+                const defaultQty = option.default_qty || option.free_qty || 0;
+                const stepperDiv = document.createElement('div');
+                stepperDiv.className = 'flex items-center border rounded-lg overflow-hidden bg-white hidden';
+                stepperDiv.id = `stepper-${idx}`;
+                stepperDiv.innerHTML = `
+                    <button type="button" class="px-2 py-1 bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm" onclick="adjustOptionQty(${idx}, -1)">-</button>
+                    <input type="number" id="opt-qty-${idx}" value="${defaultQty}" min="0" 
+                        class="w-12 text-center text-sm outline-none border-l border-r" 
+                        oninput="calculate()">
+                    <button type="button" class="px-2 py-1 bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm" onclick="adjustOptionQty(${idx}, 1)">+</button>
+                `;
+                controls.appendChild(stepperDiv);
+            }
+
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.className = 'w-5 h-5 text-blue-600 rounded focus:ring-blue-500';
+            checkbox.id = `opt-check-${idx}`;
             checkbox.onchange = (e) => {
-                if (e.target.checked) { selectedOptions.push(option); } else { selectedOptions = selectedOptions.filter(o => o.name !== option.name); }
+                if (option.unit_type === 'quantity') {
+                    const stepper = document.getElementById(`stepper-${idx}`);
+                    if (e.target.checked) {
+                        stepper.classList.remove('hidden');
+                        selectedOptions.push({ ...option, optIdx: idx });
+                    } else {
+                        stepper.classList.add('hidden');
+                        selectedOptions = selectedOptions.filter(o => o.name !== option.name);
+                    }
+                } else {
+                    if (e.target.checked) {
+                        selectedOptions.push(option);
+                    } else {
+                        selectedOptions = selectedOptions.filter(o => o.name !== option.name);
+                    }
+                }
                 calculate();
             };
+            controls.appendChild(checkbox);
+
             optDiv.appendChild(label);
-            optDiv.appendChild(checkbox);
+            optDiv.appendChild(controls);
             container.appendChild(optDiv);
         });
+    }
+
+    function adjustOptionQty(idx, delta) {
+        const input = document.getElementById(`opt-qty-${idx}`);
+        let val = parseInt(input.value) || 0;
+        val += delta;
+        if (val < 0) val = 0;
+        input.value = val;
+        calculate();
     }
 
     function adjustQty(delta) {
@@ -387,14 +472,65 @@ foreach ($categories as $cat) {
             }
 
             const area = (width * height) / 1000000;
+
+            // 폭 판정 로직
+            const rollWidth = Math.min(inputWidth, inputHeight);
+            let unitPrice = currentProduct.unit_price;
+            let widthType = '';
+            let widthInfoHtml = '';
+            const widthInfoDiv = document.getElementById('width-info');
+            const widthInfoBox = document.getElementById('width-info-box');
+            const widthInfoText = document.getElementById('width-info-text');
+
+            if (currentProduct.use_width_pricing && rollWidth > 0) {
+                if (rollWidth > 4800) {
+                    // 제작불가
+                    widthType = '제작불가';
+                    widthInfoBox.className = 'p-3 rounded-lg border bg-red-50 border-red-200';
+                    widthInfoText.innerHTML = `<span class="text-red-600">⚠️ 폭 ${rollWidth}mm → <strong>제작불가</strong> (4800mm 초과)</span>`;
+                    widthInfoDiv.classList.remove('hidden');
+                    document.getElementById('result-total').textContent = '제작불가';
+                    document.getElementById('result-spec').textContent = `${inputWidth} × ${inputHeight}mm`;
+                    document.getElementById('add-cart-btn').disabled = true;
+                    return;
+                } else if (rollWidth > 3100) {
+                    unitPrice = currentProduct.price_xlarge || currentProduct.unit_price;
+                    widthType = '초장폭';
+                    widthInfoBox.className = 'p-3 rounded-lg border bg-purple-50 border-purple-200';
+                } else if (rollWidth > 2100) {
+                    unitPrice = currentProduct.price_large || currentProduct.unit_price;
+                    widthType = '장폭';
+                    widthInfoBox.className = 'p-3 rounded-lg border bg-orange-50 border-orange-200';
+                } else {
+                    unitPrice = currentProduct.price_small || currentProduct.unit_price;
+                    widthType = '단폭';
+                    widthInfoBox.className = 'p-3 rounded-lg border bg-green-50 border-green-200';
+                }
+
+                // 폭 할증
+                let surchargeText = '';
+                if (rollWidth >= 1800 && currentProduct.width_surcharge_1800 > 0) {
+                    unitPrice += currentProduct.width_surcharge_1800;
+                    surchargeText = ` + 할증 ${currentProduct.width_surcharge_1800.toLocaleString()}원`;
+                }
+
+                widthInfoText.innerHTML = `폭 ${rollWidth}mm → <strong>${widthType}</strong> 적용 (㎡당 ${unitPrice.toLocaleString()}원${surchargeText})`;
+                widthInfoDiv.classList.remove('hidden');
+            } else {
+                widthInfoDiv.classList.add('hidden');
+            }
+
             if (area > 0) {
                 let calcArea = area;
                 if (currentProduct.min_area && area < currentProduct.min_area) { calcArea = currentProduct.min_area; }
-                basePrice = calcArea * currentProduct.unit_price * quantity;
+                basePrice = calcArea * unitPrice * quantity;
                 if (currentProduct.apply_rounding && (inputWidth !== width || inputHeight !== height)) {
                     spec = `${inputWidth} × ${inputHeight}mm → ${width} × ${height}mm (${area.toFixed(2)}㎡) × ${quantity}개`;
                 } else {
                     spec = `${width} × ${height}mm (${area.toFixed(2)}㎡) × ${quantity}개`;
+                }
+                if (widthType) {
+                    spec += ` [${widthType}]`;
                 }
             }
         } else if (currentProduct.calc_type === 'text') {
@@ -418,9 +554,30 @@ foreach ($categories as $cat) {
 
         let optionPrice = 0;
         let discount = 0;
+
+        // 면적 계산 (per_m2 옵션용)
+        let area = 0;
+        if (currentProduct.calc_type === 'area') {
+            const inputWidth = parseFloat(document.getElementById('width').value) || 0;
+            const inputHeight = parseFloat(document.getElementById('height').value) || 0;
+            area = (inputWidth * inputHeight) / 1000000;
+        }
+
         selectedOptions.forEach(option => {
-            if (option.discount) { discount += basePrice * option.discount; }
-            else { optionPrice += option.price * quantity; }
+            if (option.discount) {
+                discount += basePrice * option.discount;
+            } else if (option.unit_type === 'per_m2' && area > 0) {
+                // ㎡당 추가금액: 면적 × 옵션금액 × 수량
+                optionPrice += option.price * area * quantity;
+            } else if (option.unit_type === 'quantity') {
+                // 수량형 옵션: (선택수량 - 무료수량) × 초과단가 × 제품수량
+                const optQtyInput = document.getElementById(`opt-qty-${option.optIdx}`);
+                const optQty = optQtyInput ? parseInt(optQtyInput.value) || 0 : 0;
+                const extraQty = Math.max(0, optQty - (option.free_qty || 0));
+                optionPrice += extraQty * option.qty_unit_price * quantity;
+            } else {
+                optionPrice += option.price * quantity;
+            }
         });
 
         const total = basePrice + optionPrice - discount;

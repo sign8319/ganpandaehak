@@ -116,7 +116,13 @@ try {
             $base_size = isset($_POST['base_size']) && $_POST['base_size'] ? (int) $_POST['base_size'] : null;
             $description = sql_real_escape_string($_POST['description']);
             $active = isset($_POST['is_active']) ? 1 : 0;
-            $sql = "INSERT INTO g5_quote_products (subcategory_id, name, unit_price, unit, calc_type, apply_rounding, min_area, base_size, description, is_active, sort_order) VALUES ($subcategory_id, '$name', $unit_price, '$unit', '$calc_type', $apply_rounding, " . ($min_area ? $min_area : 'NULL') . ", " . ($base_size ? $base_size : 'NULL') . ", '$description', $active, 0)";
+            // 폭별 단가 필드
+            $use_width_pricing = isset($_POST['use_width_pricing']) ? 1 : 0;
+            $price_small = isset($_POST['price_small']) && $_POST['price_small'] ? (float) $_POST['price_small'] : null;
+            $price_large = isset($_POST['price_large']) && $_POST['price_large'] ? (float) $_POST['price_large'] : null;
+            $price_xlarge = isset($_POST['price_xlarge']) && $_POST['price_xlarge'] ? (float) $_POST['price_xlarge'] : null;
+            $width_surcharge_1800 = isset($_POST['width_surcharge_1800']) ? (float) $_POST['width_surcharge_1800'] : 0;
+            $sql = "INSERT INTO g5_quote_products (subcategory_id, name, unit_price, price_small, price_large, price_xlarge, width_surcharge_1800, use_width_pricing, unit, calc_type, apply_rounding, min_area, base_size, description, is_active, sort_order) VALUES ($subcategory_id, '$name', $unit_price, " . ($price_small ? $price_small : 'NULL') . ", " . ($price_large ? $price_large : 'NULL') . ", " . ($price_xlarge ? $price_xlarge : 'NULL') . ", $width_surcharge_1800, $use_width_pricing, '$unit', '$calc_type', $apply_rounding, " . ($min_area ? $min_area : 'NULL') . ", " . ($base_size ? $base_size : 'NULL') . ", '$description', $active, 0)";
             sql_query($sql);
             echo json_encode(['success' => true, 'message' => '제품이 추가되었습니다']);
             break;
@@ -132,7 +138,13 @@ try {
             $base_size = isset($_POST['base_size']) && $_POST['base_size'] ? (int) $_POST['base_size'] : null;
             $description = sql_real_escape_string($_POST['description']);
             $active = isset($_POST['is_active']) ? 1 : 0;
-            $sql = "UPDATE g5_quote_products SET subcategory_id = $subcategory_id, name = '$name', unit_price = $unit_price, unit = '$unit', calc_type = '$calc_type', apply_rounding = $apply_rounding, min_area = " . ($min_area ? $min_area : 'NULL') . ", base_size = " . ($base_size ? $base_size : 'NULL') . ", description = '$description', is_active = $active WHERE id = $id";
+            // 폭별 단가 필드
+            $use_width_pricing = isset($_POST['use_width_pricing']) ? 1 : 0;
+            $price_small = isset($_POST['price_small']) && $_POST['price_small'] ? (float) $_POST['price_small'] : null;
+            $price_large = isset($_POST['price_large']) && $_POST['price_large'] ? (float) $_POST['price_large'] : null;
+            $price_xlarge = isset($_POST['price_xlarge']) && $_POST['price_xlarge'] ? (float) $_POST['price_xlarge'] : null;
+            $width_surcharge_1800 = isset($_POST['width_surcharge_1800']) ? (float) $_POST['width_surcharge_1800'] : 0;
+            $sql = "UPDATE g5_quote_products SET subcategory_id = $subcategory_id, name = '$name', unit_price = $unit_price, price_small = " . ($price_small ? $price_small : 'NULL') . ", price_large = " . ($price_large ? $price_large : 'NULL') . ", price_xlarge = " . ($price_xlarge ? $price_xlarge : 'NULL') . ", width_surcharge_1800 = $width_surcharge_1800, use_width_pricing = $use_width_pricing, unit = '$unit', calc_type = '$calc_type', apply_rounding = $apply_rounding, min_area = " . ($min_area ? $min_area : 'NULL') . ", base_size = " . ($base_size ? $base_size : 'NULL') . ", description = '$description', is_active = $active WHERE id = $id";
             sql_query($sql);
             echo json_encode(['success' => true, 'message' => '제품이 수정되었습니다']);
             break;
@@ -167,7 +179,11 @@ try {
             $price = (float) $_POST['price'];
             $discount = isset($_POST['discount']) ? (float) $_POST['discount'] : 0;
             $order = (int) $_POST['sort_order'];
-            $sql = "INSERT INTO g5_quote_options (product_id, name, price, discount, sort_order) VALUES ($product_id, '$name', $price, $discount, $order)";
+            $unit_type = isset($_POST['unit_type']) ? sql_real_escape_string($_POST['unit_type']) : 'fixed';
+            $free_qty = isset($_POST['free_qty']) ? (int) $_POST['free_qty'] : 0;
+            $qty_unit_price = isset($_POST['qty_unit_price']) ? (float) $_POST['qty_unit_price'] : 0;
+            $default_qty = isset($_POST['default_qty']) ? (int) $_POST['default_qty'] : 0;
+            $sql = "INSERT INTO g5_quote_options (product_id, name, price, discount, unit_type, free_qty, qty_unit_price, default_qty, sort_order) VALUES ($product_id, '$name', $price, $discount, '$unit_type', $free_qty, $qty_unit_price, $default_qty, $order)";
             sql_query($sql);
             echo json_encode(['success' => true, 'message' => '옵션이 추가되었습니다']);
             break;
@@ -178,7 +194,11 @@ try {
             $price = (float) $_POST['price'];
             $discount = isset($_POST['discount']) ? (float) $_POST['discount'] : 0;
             $order = (int) $_POST['sort_order'];
-            $sql = "UPDATE g5_quote_options SET product_id = $product_id, name = '$name', price = $price, discount = $discount, sort_order = $order WHERE id = $id";
+            $unit_type = isset($_POST['unit_type']) ? sql_real_escape_string($_POST['unit_type']) : 'fixed';
+            $free_qty = isset($_POST['free_qty']) ? (int) $_POST['free_qty'] : 0;
+            $qty_unit_price = isset($_POST['qty_unit_price']) ? (float) $_POST['qty_unit_price'] : 0;
+            $default_qty = isset($_POST['default_qty']) ? (int) $_POST['default_qty'] : 0;
+            $sql = "UPDATE g5_quote_options SET product_id = $product_id, name = '$name', price = $price, discount = $discount, unit_type = '$unit_type', free_qty = $free_qty, qty_unit_price = $qty_unit_price, default_qty = $default_qty, sort_order = $order WHERE id = $id";
             sql_query($sql);
             echo json_encode(['success' => true, 'message' => '옵션이 수정되었습니다']);
             break;

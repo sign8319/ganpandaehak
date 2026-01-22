@@ -110,6 +110,48 @@
                 </div>
                 <p class="text-xs text-gray-500 mt-2">면적 계산 시 가로/세로 1m 미만을 1m로 올림 처리합니다</p>
             </div>
+
+            <!-- 폭별 단가 설정 -->
+            <div class="p-4 bg-green-50 border border-green-200 rounded-lg" id="widthPricingSection">
+                <div class="flex items-center mb-3">
+                    <input type="checkbox" id="product_use_width_pricing" name="use_width_pricing"
+                        onchange="toggleWidthPricing()"
+                        class="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
+                    <label for="product_use_width_pricing" class="ml-2 text-sm font-medium text-gray-700">폭별 단가 사용
+                        (단폭/장폭/초장폭)</label>
+                </div>
+                <div id="widthPricingFields" class="hidden space-y-3">
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">단폭 단가 (≤2100mm)</label>
+                            <input type="number" id="product_price_small" name="price_small" step="0.01"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                                placeholder="8000">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">장폭 단가 (2101~3100mm)</label>
+                            <input type="number" id="product_price_large" name="price_large" step="0.01"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                                placeholder="10000">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">초장폭 단가 (3101~4800mm)</label>
+                            <input type="number" id="product_price_xlarge" name="price_xlarge" step="0.01"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                                placeholder="15000">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">폭 ≥1800mm 할증 (원/㎡)</label>
+                        <input type="number" id="product_width_surcharge" name="width_surcharge_1800" step="0.01"
+                            value="0"
+                            class="w-32 px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                            placeholder="1000">
+                        <span class="text-xs text-gray-500 ml-2">폭 1800mm 이상 시 ㎡당 추가금액</span>
+                    </div>
+                    <p class="text-xs text-gray-500">판정기준: roll_width = min(가로, 세로) / 4800mm 초과 시 제작불가</p>
+                </div>
+            </div>
             <div class="grid grid-cols-2 gap-4" id="advancedFields">
                 <div id="minAreaField"><label class="block text-sm font-medium text-gray-700 mb-2">최소 면적
                         (㎡)</label><input type="number" id="product_min_area" name="min_area" step="0.01"
@@ -141,10 +183,11 @@
     document.addEventListener('DOMContentLoaded', function () { loadCategoriesForFilter(); loadProducts(); });
     function loadCategoriesForFilter() { fetch('admin_quote_api.php?action=get_categories').then(r => r.json()).then(data => { ['filterCategory', 'product_category'].forEach(id => { const s = document.getElementById(id); data.forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; s.appendChild(o); }); }); }); }
     function loadProducts() { const cid = document.getElementById('filterCategory').value; const sid = document.getElementById('filterSubcategory').value; let url = 'admin_quote_api.php?action=get_products'; if (cid) url += `&category_id=${cid}`; if (sid) url += `&subcategory_id=${sid}`; fetch(url).then(r => r.json()).then(data => { const tbody = document.getElementById('products-list'); tbody.innerHTML = ''; if (data.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">등록된 제품이 없습니다</td></tr>'; return; } const types = { area: '면적', text: '글자', length: '길이', fixed: '고정가' }; data.forEach(p => { tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="px-4 py-3 text-sm text-gray-900">${p.category_name}</td><td class="px-4 py-3 text-sm text-gray-700">${p.subcategory_name}</td><td class="px-4 py-3 text-sm font-medium text-gray-900">${p.name}</td><td class="px-4 py-3 text-sm text-gray-700">${parseInt(p.unit_price).toLocaleString()}원/${p.unit}</td><td class="px-4 py-3 text-sm text-gray-700">${types[p.calc_type]}</td><td class="px-4 py-3"><span class="px-2 py-1 text-xs rounded-full ${p.apply_rounding ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}">${p.apply_rounding ? '올림' : '정확'}</span></td><td class="px-4 py-3"><span class="px-2 py-1 text-xs rounded-full ${p.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">${p.is_active ? '활성' : '비활성'}</span></td><td class="px-4 py-3"><div class="flex justify-center gap-2"><button onclick="editProduct(${p.id})" class="text-blue-600 hover:text-blue-800 text-sm">수정</button><button onclick="deleteProduct(${p.id})" class="text-red-600 hover:text-red-800 text-sm">삭제</button></div></td></tr>`; }); }); }
-    function openProductModal(id = null) { document.getElementById('productModal').classList.remove('hidden'); if (id) { document.getElementById('productModalTitle').textContent = '제품 수정'; fetch(`admin_quote_api.php?action=get_product&id=${id}`).then(r => r.json()).then(d => { document.getElementById('product_id').value = d.id; document.getElementById('product_category').value = d.category_id; loadSubcategoriesForProduct(d.subcategory_id); document.getElementById('product_name').value = d.name; document.getElementById('product_price').value = d.unit_price; document.getElementById('product_unit').value = d.unit; document.getElementById('product_calc_type').value = d.calc_type; document.getElementById('product_rounding').checked = d.apply_rounding == 1; document.getElementById('product_min_area').value = d.min_area || ''; document.getElementById('product_base_size').value = d.base_size || ''; document.getElementById('product_description').value = d.description || ''; document.getElementById('product_active').checked = d.is_active == 1; toggleCalcFields(); }); } else { document.getElementById('productModalTitle').textContent = '제품 추가'; document.getElementById('productForm').reset(); document.getElementById('product_id').value = ''; toggleCalcFields(); } }
+    function openProductModal(id = null) { document.getElementById('productModal').classList.remove('hidden'); if (id) { document.getElementById('productModalTitle').textContent = '제품 수정'; fetch(`admin_quote_api.php?action=get_product&id=${id}`).then(r => r.json()).then(d => { document.getElementById('product_id').value = d.id; document.getElementById('product_category').value = d.category_id; loadSubcategoriesForProduct(d.subcategory_id); document.getElementById('product_name').value = d.name; document.getElementById('product_price').value = d.unit_price; document.getElementById('product_unit').value = d.unit; document.getElementById('product_calc_type').value = d.calc_type; document.getElementById('product_rounding').checked = d.apply_rounding == 1; document.getElementById('product_min_area').value = d.min_area || ''; document.getElementById('product_base_size').value = d.base_size || ''; document.getElementById('product_description').value = d.description || ''; document.getElementById('product_active').checked = d.is_active == 1; document.getElementById('product_use_width_pricing').checked = d.use_width_pricing == 1; document.getElementById('product_price_small').value = d.price_small || ''; document.getElementById('product_price_large').value = d.price_large || ''; document.getElementById('product_price_xlarge').value = d.price_xlarge || ''; document.getElementById('product_width_surcharge').value = d.width_surcharge_1800 || 0; toggleCalcFields(); toggleWidthPricing(); }); } else { document.getElementById('productModalTitle').textContent = '제품 추가'; document.getElementById('productForm').reset(); document.getElementById('product_id').value = ''; toggleCalcFields(); toggleWidthPricing(); } }
     function closeProductModal() { document.getElementById('productModal').classList.add('hidden'); }
     function loadSubcategoriesForProduct(selectedId = null) { const cid = document.getElementById('product_category').value; const s = document.getElementById('product_subcategory'); s.innerHTML = '<option value="">선택하세요</option>'; if (!cid) return; fetch(`admin_quote_api.php?action=get_subcategories&category_id=${cid}`).then(r => r.json()).then(data => { data.forEach(sub => { const o = document.createElement('option'); o.value = sub.id; o.textContent = sub.name; if (selectedId && sub.id == selectedId) o.selected = true; s.appendChild(o); }); }); }
     function toggleCalcFields() { const t = document.getElementById('product_calc_type').value; const m = document.getElementById('minAreaField'); const b = document.getElementById('baseSizeField'); m.classList.add('hidden'); b.classList.add('hidden'); if (t === 'area') m.classList.remove('hidden'); else if (t === 'text') b.classList.remove('hidden'); }
+    function toggleWidthPricing() { const checked = document.getElementById('product_use_width_pricing').checked; const fields = document.getElementById('widthPricingFields'); if (checked) { fields.classList.remove('hidden'); } else { fields.classList.add('hidden'); } }
     function addNewSubcategory() { const cid = document.getElementById('product_category').value; if (!cid) { alert('먼저 카테고리를 선택하세요'); return; } const n = prompt('서브카테고리 이름:'); if (!n) return; const fd = new FormData(); fd.append('action', 'add_subcategory'); fd.append('category_id', cid); fd.append('name', n); fetch('admin_quote_api.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { if (d.success) loadSubcategoriesForProduct(d.id); else alert('오류: ' + d.message); }); }
     document.getElementById('productForm').addEventListener('submit', function (e) { e.preventDefault(); const fd = new FormData(this); const id = document.getElementById('product_id').value; fd.append('action', id ? 'update_product' : 'add_product'); fetch('admin_quote_api.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { if (d.success) { alert(d.message); closeProductModal(); loadProducts(); } else alert('오류: ' + d.message); }); });
     function editProduct(id) { openProductModal(id); }

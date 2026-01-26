@@ -19,13 +19,13 @@ if (isset($_GET['action']) && $_GET['action'] == 'fix_orphans') {
         $fixed_count++;
     }
 
-    alert("점검 완료: {$fixed_count}건의 누락된 견적 내역을 복구했습니다.", './admin_quote.php');
+    alert("점검 완료: {$fixed_count}건의 누락된 견적 내역을 복구했습니다.", './admin_quote.php?f_month=');
 }
 include_once('./includes/quote_db_schema.php');
 
 
 // Init Variables to prevent Warnings
-$f_month = isset($_REQUEST['f_month']) ? $_REQUEST['f_month'] : date('m');
+$f_month = isset($_REQUEST['f_month']) ? $_REQUEST['f_month'] : '';
 $f_year = isset($_REQUEST['f_year']) ? $_REQUEST['f_year'] : '';
 $q = isset($_REQUEST['q']) ? $_REQUEST['q'] : '';
 
@@ -204,7 +204,7 @@ include_once('./includes/quote_ajax.php');
 // -----------------------------------------------------------------------------
 if ($w == '') {
     $f_year = isset($_GET['f_year']) ? $_GET['f_year'] : '';
-    $f_month = isset($_GET['f_month']) ? $_GET['f_month'] : date('m');
+    $f_month = isset($_GET['f_month']) ? $_GET['f_month'] : '';
     $q = isset($_GET['q']) ? $_GET['q'] : '';
 
     $stx = $q; // Use $q as $stx for search term
@@ -912,487 +912,487 @@ include_once(G5_THEME_PATH . '/head.php');
                             </div>
 
                             <!-- Scrollable Tabs Container for Mobile-->
-                                <div
-                                    class="flex overflow-x-auto min-w-0 w-full lg:w-auto lg:flex-1 pb-2 lg:pb-0 no-scrollbar gap-1">
-                                    <button type="button" onclick="load_list('')"
-                                        class="flex-shrink-0 month-tab px-3 py-1.5 lg:px-4 lg:py-2 rounded text-xs lg:text-sm lg:rounded-t-lg lg:rounded-b-none font-bold border border-gray-200 lg:border-b-0 transition <?php echo $f_month == '' ? 'bg-orange-600 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50'; ?>">
-                                        전체
-                                    </button>
-                                    <?php
-                                    for ($i = 1; $i <= 12; $i++) {
-                                        $m_val = sprintf('%02d', $i);
-                                        $active = ($f_month == $m_val) ? 'bg-orange-600 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50';
-                                        echo "<button type='button' onclick=\"load_list('$m_val')\" class='flex-shrink-0 month-tab px-3 py-1.5 lg:px-4 lg:py-2 rounded text-xs lg:text-sm lg:rounded-t-lg lg:rounded-b-none font-bold border border-gray-200 lg:border-b-0 transition {$active}'>{$i}월</button>";
-                                    }
-                                    ?>
-                                </div>
+                            <div
+                                class="flex overflow-x-auto min-w-0 w-full lg:w-auto lg:flex-1 pb-2 lg:pb-0 no-scrollbar gap-1">
+                                <button type="button" onclick="load_list('')"
+                                    class="flex-shrink-0 month-tab px-3 py-1.5 lg:px-4 lg:py-2 rounded text-xs lg:text-sm lg:rounded-t-lg lg:rounded-b-none font-bold border border-gray-200 lg:border-b-0 transition <?php echo $f_month == '' ? 'bg-orange-600 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50'; ?>">
+                                    전체
+                                </button>
+                                <?php
+                                for ($i = 1; $i <= 12; $i++) {
+                                    $m_val = sprintf('%02d', $i);
+                                    $active = ($f_month == $m_val) ? 'bg-orange-600 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50';
+                                    echo "<button type='button' onclick=\"load_list('$m_val')\" class='flex-shrink-0 month-tab px-3 py-1.5 lg:px-4 lg:py-2 rounded text-xs lg:text-sm lg:rounded-t-lg lg:rounded-b-none font-bold border border-gray-200 lg:border-b-0 transition {$active}'>{$i}월</button>";
+                                }
+                                ?>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- List Table -->
-                        <form name="fquotelist" id="fquotelist" action="./admin_quote.php"
-                            onsubmit="return fquotelist_submit(this);" method="post">
-                            <input type="hidden" name="w" value="multi_d"> <!-- // FIX -->
-                            <input type="hidden" name="token" value="<?php echo $token; ?>">
+                    <!-- List Table -->
+                    <form name="fquotelist" id="fquotelist" action="./admin_quote.php"
+                        onsubmit="return fquotelist_submit(this);" method="post">
+                        <input type="hidden" name="w" value="multi_d"> <!-- // FIX -->
+                        <input type="hidden" name="token" value="<?php echo $token; ?>">
 
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-left text-sm whitespace-nowrap">
-                                    <thead class="bg-gray-50 text-gray-500 font-medium border-b text-xs">
-                                        <tr>
-                                            <th class="p-3 text-center w-10">
-                                                <input type="checkbox" id="chkall"
-                                                    class="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500">
-                                            </th>
-                                            <th class="p-3">날짜</th>
-                                            <th class="p-3 text-center">요약(!)</th>
-                                            <th class="p-3 text-center">상태</th>
-                                            <th class="p-3">상호(업체명)</th>
-                                            <th class="p-3">연락처</th>
-                                            <th class="p-3">주소</th>
-                                            <th class="p-3 text-right">총금액</th>
-                                            <th class="p-3 text-center">견적미리보기</th>
-                                            <th class="p-3 text-center">연결된</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-100 bg-white" id="list_tbody">
-                                        <?php if (sql_num_rows($result) > 0) {
-                                            while ($row = sql_fetch_array($result)) {
-                                                $color = get_status_color($row['qa_status']);
-                                                ?>
-                                                        <tr class="hover:bg-orange-50 transition border-b border-gray-100"
-                                                            onclick="row_go(event, <?php echo (int) $row['qa_id']; ?>)">
-                                                            <td class="p-3 text-center">
-                                                                <input type="checkbox" name="chk_qa_id[]" value="<?php echo $row['work_id']; ?>"
-                                                                    onclick="event.stopPropagation();"
-                                                                    class="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500">
-                                                            </td>
-                                                            <td class="p-3">
-                                                                <div class="leading-tight">
-                                                                    <div class="font-bold text-gray-800 text-sm">
-                                                                        <?php echo date('m.d', strtotime($row['qa_datetime'])); ?>
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                            <td class="p-3 text-center">
-                                                                <button type="button"
-                                                                    onclick="show_quote_summary(<?php echo $row['qa_id']; ?>); event.stopPropagation();"
-                                                                    class="text-gray-400 hover:text-orange-500 transition" title="빠른 요약 보기">
-                                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
-                                                                        </path>
-                                                                    </svg>
-                                                                </button>
-                                                            </td>
-                                                            <td class="p-3 text-center">
-                                                                <span
-                                                                    class="inline-block px-2 py-1 rounded-sm text-xs font-bold bg-<?php echo $color; ?>-100 text-<?php echo $color; ?>-700">
-                                                                    <?php
-                                                                    // 상태값 매핑 (draft -> 작성중)
-                                                                    $display_status = $row['qa_status'];
-                                                                    if ($display_status == 'draft')
-                                                                        $display_status = '작성중';
-
-                                                                    echo $display_status;
-                                                                    ?>
-                                                                </span>
-                                                            </td>
-                                                            <td class="p-3 font-bold text-sm text-gray-800">
-                                                                <?php echo $row['qa_tax_company_name']; ?>
-                                                            </td>
-                                                            <td class="p-3 text-xs text-gray-600 font-mono">
-                                                                <?php echo $row['qa_client_hp']; ?>
-                                                            </td>
-                                                            <td class="p-3 text-xs text-gray-500 truncate max-w-[150px]"
-                                                                title="<?php echo $row['qa_client_addr'] . ' ' . $row['qa_client_addr2']; ?>">
-                                                                <?php echo $row['qa_client_addr']; ?>
-                                                            </td>
-                                                            <td class="p-3 text-right font-bold text-orange-600 text-sm">
-                                                                <?php echo number_format($row['qa_price_total']); ?>
-                                                            </td>
-                                                            <td class="p-3 text-center">
-                                                                <button type="button"
-                                                                    onclick="open_preview_modal(<?php echo $row['qa_id']; ?>); event.stopPropagation();"
-                                                                    class="bg-white border hover:bg-gray-50 text-gray-700 px-2 py-1 rounded text-xs shadow-sm inline-flex items-center gap-1 transition whitespace-nowrap">
-                                                                    <span>👁️</span> 견적미리보기
-                                                                </button>
-                                                            </td>
-                                                            <td class="p-3 text-center">
-                                                                <a href="?q=<?php echo urlencode($row['qa_tax_company_name']); ?>"
-                                                                    onclick="event.stopPropagation();"
-                                                                    class="inline-block px-2 py-1 border border-gray-300 rounded text-xs text-gray-600 hover:bg-gray-100 whitespace-nowrap">
-                                                                    연결된
-                                                                </a>
-                                                            </td>
-                                                        </tr>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm whitespace-nowrap">
+                                <thead class="bg-gray-50 text-gray-500 font-medium border-b text-xs">
+                                    <tr>
+                                        <th class="p-3 text-center w-10">
+                                            <input type="checkbox" id="chkall"
+                                                class="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500">
+                                        </th>
+                                        <th class="p-3">날짜</th>
+                                        <th class="p-3 text-center">요약(!)</th>
+                                        <th class="p-3 text-center">상태</th>
+                                        <th class="p-3">상호(업체명)</th>
+                                        <th class="p-3">연락처</th>
+                                        <th class="p-3">주소</th>
+                                        <th class="p-3 text-right">총금액</th>
+                                        <th class="p-3 text-center">견적미리보기</th>
+                                        <th class="p-3 text-center">연결된</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 bg-white" id="list_tbody">
+                                    <?php if (sql_num_rows($result) > 0) {
+                                        while ($row = sql_fetch_array($result)) {
+                                            $color = get_status_color($row['qa_status']);
+                                            ?>
+                                            <tr class="hover:bg-orange-50 transition border-b border-gray-100"
+                                                onclick="row_go(event, <?php echo (int) $row['qa_id']; ?>)">
+                                                <td class="p-3 text-center">
+                                                    <input type="checkbox" name="chk_qa_id[]" value="<?php echo $row['work_id']; ?>"
+                                                        onclick="event.stopPropagation();"
+                                                        class="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500">
+                                                </td>
+                                                <td class="p-3">
+                                                    <div class="leading-tight">
+                                                        <div class="font-bold text-gray-800 text-sm">
+                                                            <?php echo date('m.d', strtotime($row['qa_datetime'])); ?>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="p-3 text-center">
+                                                    <button type="button"
+                                                        onclick="show_quote_summary(<?php echo $row['qa_id']; ?>); event.stopPropagation();"
+                                                        class="text-gray-400 hover:text-orange-500 transition" title="빠른 요약 보기">
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                                                            </path>
+                                                        </svg>
+                                                    </button>
+                                                </td>
+                                                <td class="p-3 text-center">
+                                                    <span
+                                                        class="inline-block px-2 py-1 rounded-sm text-xs font-bold bg-<?php echo $color; ?>-100 text-<?php echo $color; ?>-700">
                                                         <?php
-                                            }
-                                        } else {
-                                            echo '<tr><td colspan="10" class="p-10 text-center text-gray-400">등록된 견적서가 없습니다.</td></tr>';
-                                        } ?>
-                                    </tbody>
-                                </table>
-                            </div>
+                                                        // 상태값 매핑 (draft -> 작성중)
+                                                        $display_status = $row['qa_status'];
+                                                        if ($display_status == 'draft')
+                                                            $display_status = '작성중';
 
-                            <div class="p-4 border-t bg-gray-50 flex justify-between items-center">
-                                <div><!-- Pagination etc --></div>
-                                <button type="submit"
-                                    class="bg-white border border-red-200 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded text-xs font-bold shadow-sm transition">
-                                    선택 삭제
-                                </button>
-                            </div>
-                        </form>
-                    </div> <!-- End List View Container -->
+                                                        echo $display_status;
+                                                        ?>
+                                                    </span>
+                                                </td>
+                                                <td class="p-3 font-bold text-sm text-gray-800">
+                                                    <?php echo $row['qa_tax_company_name']; ?>
+                                                </td>
+                                                <td class="p-3 text-xs text-gray-600 font-mono">
+                                                    <?php echo $row['qa_client_hp']; ?>
+                                                </td>
+                                                <td class="p-3 text-xs text-gray-500 truncate max-w-[150px]"
+                                                    title="<?php echo $row['qa_client_addr'] . ' ' . $row['qa_client_addr2']; ?>">
+                                                    <?php echo $row['qa_client_addr']; ?>
+                                                </td>
+                                                <td class="p-3 text-right font-bold text-orange-600 text-sm">
+                                                    <?php echo number_format($row['qa_price_total']); ?>
+                                                </td>
+                                                <td class="p-3 text-center">
+                                                    <button type="button"
+                                                        onclick="open_preview_modal(<?php echo $row['qa_id']; ?>); event.stopPropagation();"
+                                                        class="bg-white border hover:bg-gray-50 text-gray-700 px-2 py-1 rounded text-xs shadow-sm inline-flex items-center gap-1 transition whitespace-nowrap">
+                                                        <span>👁️</span> 견적미리보기
+                                                    </button>
+                                                </td>
+                                                <td class="p-3 text-center">
+                                                    <a href="?q=<?php echo urlencode($row['qa_tax_company_name']); ?>"
+                                                        onclick="event.stopPropagation();"
+                                                        class="inline-block px-2 py-1 border border-gray-300 rounded text-xs text-gray-600 hover:bg-gray-100 whitespace-nowrap">
+                                                        연결된
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                            <?php
+                                        }
+                                    } else {
+                                        echo '<tr><td colspan="10" class="p-10 text-center text-gray-400">등록된 견적서가 없습니다.</td></tr>';
+                                    } ?>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="p-4 border-t bg-gray-50 flex justify-between items-center">
+                            <div><!-- Pagination etc --></div>
+                            <button type="submit"
+                                class="bg-white border border-red-200 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded text-xs font-bold shadow-sm transition">
+                                선택 삭제
+                            </button>
+                        </div>
+                    </form>
+                </div> <!-- End List View Container -->
 
 
             <?php elseif ($w == 'form'): // -------------------- FORM VIEW -------------------- ?>
-                    <?php
-                    $quote = [
-                        'qa_id' => '',
-                        'qa_code' => '',
-                        'qa_subject' => '',
-                        'qa_client_name' => '',
-                        'qa_client_contact' => '',
-                        'qa_client_email' => '',
-                        'qa_client_addr' => '',
-                        'qa_client_addr2' => '',
-                        'qa_memo' => '',
-                        'qa_memo_user' => '',
-                        'qa_price_supply' => 0,
-                        'qa_price_vat' => 0,
-                        'qa_price_total' => 0,
-                        'qa_deposit' => 0
-                    ];
-                    $items = [];
-                    $form_action = 'c';
+                <?php
+                $quote = [
+                    'qa_id' => '',
+                    'qa_code' => '',
+                    'qa_subject' => '',
+                    'qa_client_name' => '',
+                    'qa_client_contact' => '',
+                    'qa_client_email' => '',
+                    'qa_client_addr' => '',
+                    'qa_client_addr2' => '',
+                    'qa_memo' => '',
+                    'qa_memo_user' => '',
+                    'qa_price_supply' => 0,
+                    'qa_price_vat' => 0,
+                    'qa_price_total' => 0,
+                    'qa_deposit' => 0
+                ];
+                $items = [];
+                $form_action = 'c';
 
-                    if ($qa_id) {
-                        $quote = sql_fetch(" select * from g5_quote where qa_id = '$qa_id' ");
-                        $res_items = sql_query(" select * from g5_quote_item where qa_id = '$qa_id' order by qi_index asc, qi_id asc ");
-                        while ($row = sql_fetch_array($res_items))
-                            $items[] = $row;
-                        $form_action = 'u';
+                if ($qa_id) {
+                    $quote = sql_fetch(" select * from g5_quote where qa_id = '$qa_id' ");
+                    $res_items = sql_query(" select * from g5_quote_item where qa_id = '$qa_id' order by qi_index asc, qi_id asc ");
+                    while ($row = sql_fetch_array($res_items))
+                        $items[] = $row;
+                    $form_action = 'u';
+                }
+
+                // [Added for Fix] Load measure data for JS Manual Import
+                $step1_measures = [];
+                if ($qa_id) {
+                    $m_res = sql_query(" SELECT * FROM g5_quote_measure WHERE qa_id = '$qa_id' ORDER BY qm_index ");
+                    while ($m_row = sql_fetch_array($m_res)) {
+                        $step1_measures[] = $m_row;
                     }
+                }
 
-                    // [Added for Fix] Load measure data for JS Manual Import
-                    $step1_measures = [];
-                    if ($qa_id) {
-                        $m_res = sql_query(" SELECT * FROM g5_quote_measure WHERE qa_id = '$qa_id' ORDER BY qm_index ");
-                        while ($m_row = sql_fetch_array($m_res)) {
-                            $step1_measures[] = $m_row;
+                // FIX: Load measure data from STEP1 if coming from step1
+                // Disconnected per user request: Step 2 should start empty even if coming from Step 1.
+                $from_step1 = isset($_GET['from_step1']) && $_GET['from_step1'] == '1';
+                /*
+                if ($from_step1 && $qa_id && empty($items)) {
+                    $measure_result = sql_query(" SELECT * FROM g5_quote_measure WHERE qa_id = '$qa_id' ORDER BY qm_index ");
+                    while ($m = sql_fetch_array($measure_result)) {
+                        $spec = '';
+                        if ($m['qm_width'] && $m['qm_height']) {
+                            $spec = $m['qm_width'] . '×' . $m['qm_height'];
+                        } elseif ($m['qm_width']) {
+                            $spec = $m['qm_width'];
+                        } elseif ($m['qm_height']) {
+                            $spec = $m['qm_height'];
                         }
+
+                        $items[] = [
+                            'qi_item' => $m['qm_type'],
+                            'qi_spec' => $spec,
+                            'qi_qty' => $m['qm_qty'] > 0 ? $m['qm_qty'] : 1,
+                            'qi_price' => 0,
+                            'qi_amount' => 0,
+                            'qi_note' => $m['qm_memo'],
+                            'qi_desc' => '',
+                            'qi_img1' => '',
+                            'qi_img2' => '',
+                            'qi_img3' => ''
+                        ];
                     }
+                }
+                */
 
-                    // FIX: Load measure data from STEP1 if coming from step1
-                    // Disconnected per user request: Step 2 should start empty even if coming from Step 1.
-                    $from_step1 = isset($_GET['from_step1']) && $_GET['from_step1'] == '1';
-                    /*
-                    if ($from_step1 && $qa_id && empty($items)) {
-                        $measure_result = sql_query(" SELECT * FROM g5_quote_measure WHERE qa_id = '$qa_id' ORDER BY qm_index ");
-                        while ($m = sql_fetch_array($measure_result)) {
-                            $spec = '';
-                            if ($m['qm_width'] && $m['qm_height']) {
-                                $spec = $m['qm_width'] . '×' . $m['qm_height'];
-                            } elseif ($m['qm_width']) {
-                                $spec = $m['qm_width'];
-                            } elseif ($m['qm_height']) {
-                                $spec = $m['qm_height'];
-                            }
-
-                            $items[] = [
-                                'qi_item' => $m['qm_type'],
-                                'qi_spec' => $spec,
-                                'qi_qty' => $m['qm_qty'] > 0 ? $m['qm_qty'] : 1,
-                                'qi_price' => 0,
-                                'qi_amount' => 0,
-                                'qi_note' => $m['qm_memo'],
-                                'qi_desc' => '',
-                                'qi_img1' => '',
-                                'qi_img2' => '',
-                                'qi_img3' => ''
-                            ];
-                        }
+                // Ensure at least one item row
+                $items[] = ['qi_item' => '', 'qi_spec' => '', 'qi_qty' => 1, 'qi_price' => 0, 'qi_amount' => 0, 'qi_note' => '', 'qi_desc' => ''];
+                ?>
+                <style>
+                    #quote_sidebar_panel {
+                        display: block !important;
                     }
-                    */
+                </style>
+                <div class="admin-container">
+                    <form name="fquote" id="fquote" action="./admin_quote.php" method="post"
+                        onsubmit="return fquote_submit(this);" enctype="multipart/form-data" class="w-full">
+                        <input type="hidden" name="w" value="<?php echo $form_action; ?>">
+                        <input type="hidden" name="qa_id" value="<?php echo $qa_id; ?>">
+                        <input type="hidden" name="qa_code" value="<?php echo $quote['qa_code']; ?>">
+                        <input type="hidden" name="token" value="<?php echo $token; ?>">
 
-                    // Ensure at least one item row
-                    $items[] = ['qi_item' => '', 'qi_spec' => '', 'qi_qty' => 1, 'qi_price' => 0, 'qi_amount' => 0, 'qi_note' => '', 'qi_desc' => ''];
-                    ?>
-                    <style>
-                        #quote_sidebar_panel {
-                            display: block !important;
-                        }
-                    </style>
-                    <div class="admin-container">
-                        <form name="fquote" id="fquote" action="./admin_quote.php" method="post"
-                            onsubmit="return fquote_submit(this);" enctype="multipart/form-data" class="w-full">
-                            <input type="hidden" name="w" value="<?php echo $form_action; ?>">
-                            <input type="hidden" name="qa_id" value="<?php echo $qa_id; ?>">
-                            <input type="hidden" name="qa_code" value="<?php echo $quote['qa_code']; ?>">
-                            <input type="hidden" name="token" value="<?php echo $token; ?>">
-
-                            <!-- Include Header (Outside Grid) -->
-                            <div class="grid grid-cols-12 gap-6 items-start">
-                                <!-- Main Content Area (9/12) -->
-                                <div class="col-span-12 lg:col-span-9">
-                                    <!-- Include Header (Inside Grid) -->
-                                    <?php include(G5_THEME_PATH . '/admin_quote_header.php'); ?>
+                        <!-- Include Header (Outside Grid) -->
+                        <div class="grid grid-cols-12 gap-6 items-start">
+                            <!-- Main Content Area (9/12) -->
+                            <div class="col-span-12 lg:col-span-9">
+                                <!-- Include Header (Inside Grid) -->
+                                <?php include(G5_THEME_PATH . '/admin_quote_header.php'); ?>
 
 
-                                    <!-- Form Start -->
-                                    <div>
+                                <!-- Form Start -->
+                                <div>
 
 
 
 
 
+                                    <div class="space-y-6">
+                                        <!-- Left: Form Area -->
                                         <div class="space-y-6">
-                                            <!-- Left: Form Area -->
-                                            <div class="space-y-6">
 
 
 
-                                                <!-- Section 2: Items (Detailed Layout) -->
-                                                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                                                    <div class="flex justify-between items-center mb-4">
-                                                        <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                                            <span class="w-1 h-4 bg-orange-600 rounded-full"></span> 견적 내역
-                                                            (Items)
-                                                        </h2>
-                                                        <span class="text-xs text-gray-400">품목 입력 후 Enter를 누르면 행이 추가됩니다.</span>
-                                                    </div>
-
-                                                    <div class="overflow-x-auto -mx-6 px-6">
-                                                        <!-- JS will render rows here. We need a solid ID target. -->
-                                                        <table class="w-full text-left border-collapse min-w-[800px]"
-                                                            id="tbl_items_new">
-                                                            <thead
-                                                                class="bg-gray-50 text-gray-500 text-xs uppercase font-bold border-b border-gray-200">
-                                                                <tr>
-                                                                    <th class="py-3 px-1 md:px-2 w-8"></th>
-                                                                    <th class="py-3 px-1 md:px-2 min-w-[100px]">품목<br
-                                                                            class="md:hidden" />(ITEM)
-                                                                    </th>
-                                                                    <!-- FIX: Split spec into W/H -->
-                                                                    <th class="py-3 px-1 md:px-2 w-16 md:w-24 text-center">가로<br
-                                                                            class="md:hidden" />(W)
-                                                                    </th>
-                                                                    <th class="py-3 px-1 md:px-2 w-16 md:w-24 text-center">세로<br
-                                                                            class="md:hidden" />(H)
-                                                                    </th>
-                                                                    <th class="py-3 px-1 md:px-2 w-14 md:w-20 text-center">수량
-                                                                    </th>
-                                                                    <th class="py-3 px-1 md:px-2 w-20 md:w-28 text-right">단가
-                                                                    </th>
-                                                                    <th class="py-3 px-1 md:px-2 w-24 md:w-32 text-right">금액
-                                                                    </th>
-                                                                    <th class="py-3 px-1 md:px-2 w-20 md:w-32">비고</th>
-                                                                    <th class="py-3 px-1 md:px-2 w-8 text-center"></th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody id="item_list_container" class="divide-y divide-gray-100">
-                                                                <!-- Rows injected by JS -->
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-
-                                                    <div
-                                                        class="mt-4 pt-4 border-t border-dashed flex justify-center relative z-10">
-                                                        <button type="button" id="btn_add_item_row"
-                                                            class="admin-btn bg-orange-50 text-orange-700 hover:bg-orange-100 shadow-sm hover:shadow">
-                                                            <span class="text-lg">+</span> 품목 행 추가하기
-                                                        </button>
-                                                    </div>
+                                            <!-- Section 2: Items (Detailed Layout) -->
+                                            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                                                <div class="flex justify-between items-center mb-4">
+                                                    <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                                        <span class="w-1 h-4 bg-orange-600 rounded-full"></span> 견적 내역
+                                                        (Items)
+                                                    </h2>
+                                                    <span class="text-xs text-gray-400">품목 입력 후 Enter를 누르면 행이 추가됩니다.</span>
                                                 </div>
 
-                                                <!-- Section 3: Memos -->
-                                                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                        <div>
-                                                            <h3
-                                                                class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-                                                                🔒 내부 메모 <span class="text-xs font-normal text-gray-400">(고객 노출
-                                                                    X)</span>
-                                                            </h3>
-                                                            <textarea name="qa_memo"
-                                                                class="w-full h-32 p-3 border border-gray-200 rounded-lg bg-yellow-50/50 resize-none text-sm placeholder-gray-400 focus:bg-white focus:border-orange-500 transition"
-                                                                placeholder="관리자 전용 메모입니다."><?php echo $quote['qa_memo']; ?></textarea>
-                                                        </div>
-                                                        <div>
-                                                            <h3
-                                                                class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-                                                                📢 고객 참고사항 <span
-                                                                    class="text-xs font-normal text-orange-500">(견적서 하단
-                                                                    표시)</span>
-                                                            </h3>
-                                                            <textarea name="qa_memo_user"
-                                                                class="w-full h-32 p-3 border border-gray-200 rounded-lg resize-none text-sm placeholder-gray-400 focus:border-orange-500 transition"
-                                                                placeholder="시공 일정, 입금 계좌 등 고객에게 알릴 내용을 입력하세요."><?php echo $quote['qa_memo_user']; ?></textarea>
-                                                        </div>
+                                                <div class="overflow-x-auto -mx-6 px-6">
+                                                    <!-- JS will render rows here. We need a solid ID target. -->
+                                                    <table class="w-full text-left border-collapse min-w-[800px]"
+                                                        id="tbl_items_new">
+                                                        <thead
+                                                            class="bg-gray-50 text-gray-500 text-xs uppercase font-bold border-b border-gray-200">
+                                                            <tr>
+                                                                <th class="py-3 px-1 md:px-2 w-8"></th>
+                                                                <th class="py-3 px-1 md:px-2 min-w-[100px]">품목<br
+                                                                        class="md:hidden" />(ITEM)
+                                                                </th>
+                                                                <!-- FIX: Split spec into W/H -->
+                                                                <th class="py-3 px-1 md:px-2 w-16 md:w-24 text-center">가로<br
+                                                                        class="md:hidden" />(W)
+                                                                </th>
+                                                                <th class="py-3 px-1 md:px-2 w-16 md:w-24 text-center">세로<br
+                                                                        class="md:hidden" />(H)
+                                                                </th>
+                                                                <th class="py-3 px-1 md:px-2 w-14 md:w-20 text-center">수량
+                                                                </th>
+                                                                <th class="py-3 px-1 md:px-2 w-20 md:w-28 text-right">단가
+                                                                </th>
+                                                                <th class="py-3 px-1 md:px-2 w-24 md:w-32 text-right">금액
+                                                                </th>
+                                                                <th class="py-3 px-1 md:px-2 w-20 md:w-32">비고</th>
+                                                                <th class="py-3 px-1 md:px-2 w-8 text-center"></th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="item_list_container" class="divide-y divide-gray-100">
+                                                            <!-- Rows injected by JS -->
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+
+                                                <div
+                                                    class="mt-4 pt-4 border-t border-dashed flex justify-center relative z-10">
+                                                    <button type="button" id="btn_add_item_row"
+                                                        class="admin-btn bg-orange-50 text-orange-700 hover:bg-orange-100 shadow-sm hover:shadow">
+                                                        <span class="text-lg">+</span> 품목 행 추가하기
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <!-- Section 3: Memos -->
+                                            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    <div>
+                                                        <h3
+                                                            class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                                                            🔒 내부 메모 <span class="text-xs font-normal text-gray-400">(고객 노출
+                                                                X)</span>
+                                                        </h3>
+                                                        <textarea name="qa_memo"
+                                                            class="w-full h-32 p-3 border border-gray-200 rounded-lg bg-yellow-50/50 resize-none text-sm placeholder-gray-400 focus:bg-white focus:border-orange-500 transition"
+                                                            placeholder="관리자 전용 메모입니다."><?php echo $quote['qa_memo']; ?></textarea>
+                                                    </div>
+                                                    <div>
+                                                        <h3
+                                                            class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                                                            📢 고객 참고사항 <span
+                                                                class="text-xs font-normal text-orange-500">(견적서 하단
+                                                                표시)</span>
+                                                        </h3>
+                                                        <textarea name="qa_memo_user"
+                                                            class="w-full h-32 p-3 border border-gray-200 rounded-lg resize-none text-sm placeholder-gray-400 focus:border-orange-500 transition"
+                                                            placeholder="시공 일정, 입금 계좌 등 고객에게 알릴 내용을 입력하세요."><?php echo $quote['qa_memo_user']; ?></textarea>
                                                     </div>
                                                 </div>
+                                            </div>
 
-                                                <!-- Form Actions (Small save btn for convenience, mainly rely on right panel) -->
-                                                <div class="text-right lg:hidden">
-                                                    <button type="submit"
-                                                        class="bg-orange-600 text-white px-6 py-3 rounded-lg font-bold shadow-lg w-full">저장하기</button>
-                                                </div>
-                                                <!-- End Mobile Actions -->
+                                            <!-- Form Actions (Small save btn for convenience, mainly rely on right panel) -->
+                                            <div class="text-right lg:hidden">
+                                                <button type="submit"
+                                                    class="bg-orange-600 text-white px-6 py-3 rounded-lg font-bold shadow-lg w-full">저장하기</button>
+                                            </div>
+                                            <!-- End Mobile Actions -->
 
-                                                <script>
-                                                    // ----------------------------------------------                                                                                                                      // Utility Functi                                            ons
-                                                    // ---------------------------------------------------------
+                                            <script>
+                                                // ----------------------------------------------                                                                                                                      // Utility Functi                                            ons
+                                                // ---------------------------------------------------------
 
-                                                    // Status selection handler
-                                                    function handle_status_change(select) {
-                                                        var input = document.getElementById('qa_status_input');
-                                                        var value = select.value;
+                                                // Status selection handler
+                                                function handle_status_change(select) {
+                                                    var input = document.getElementById('qa_status_input');
+                                                    var value = select.value;
 
-                                                        if (value === '__custom__') {
-                                                            // Show input, hide select
-                                                            select.classList.add('hidden');
-                                                            input.classList.remove('hidden');
-                                                            input.value = '';
-                                                            input.focus();
+                                                    if (value === '__custom__') {
+                                                        // Show input, hide select
+                                                        select.classList.add('hidden');
+                                                        input.classList.remove('hidden');
+                                                        input.value = '';
+                                                        input.focus();
+                                                    } else {
+                                                        // Use selected value
+                                                        input.value = value;
+                                                    }
+                                                }
+
+                                                // When input loses focus, check if empty to show select again
+                                                document.addEventListener('DOMContentLoaded', function () {
+                                                    var input = document.getElementById('qa_status_input');
+                                                    var select = document.getElementById('qa_status_select');
+
+                                                    if (input && select) {
+                                                        input.addEventListener('blur', function () {
+                                                            if (!input.value.trim()) {
+                                                                // If empty, go back to select
+                                                                input.classList.add('hidden');
+                                                                select.classList.remove('hidden');
+                                                                select.value = select.options[0].value;
+                                                                input.value = select.value;
+                                                            }
+                                                        });
+
+                                                        // Allow clicking to edit custom status
+                                                        input.addEventListener('click', function () {
+                                                            if (!input.classList.contains('hidden')) {
+                                                                input.select();
+                                                            }
+                                                        });
+                                                    }
+                                                });
+
+                                                // Phone number formatting
+                                                function formatPhoneNumber(input) {
+                                                    var numbers = input.value.replace(/[^0-9]/g, '');
+                                                    var formatted = '';
+
+                                                    if (numbers.startsWith('02')) {
+                                                        // Seoul area code
+                                                        if (numbers.length < 3) {
+                                                            formatted = numbers;
+                                                        } else if (numbers.length < 6) {
+                                                            formatted = numbers.slice(0, 2) + '-' + numbers.slice(2);
+                                                        } else if (numbers.length < 10) {
+                                                            formatted = numbers.slice(0, 2) + '-' + numbers.slice(2, 5) + '-' + numbers.slice(5);
                                                         } else {
-                                                            // Use selected value
-                                                            input.value = value;
+                                                            formatted = numbers.slice(0, 2) + '-' + numbers.slice(2, 6) + '-' + numbers.slice(6, 10);
                                                         }
-                                                    }
-
-                                                    // When input loses focus, check if empty to show select again
-                                                    document.addEventListener('DOMContentLoaded', function () {
-                                                        var input = document.getElementById('qa_status_input');
-                                                        var select = document.getElementById('qa_status_select');
-
-                                                        if (input && select) {
-                                                            input.addEventListener('blur', function () {
-                                                                if (!input.value.trim()) {
-                                                                    // If empty, go back to select
-                                                                    input.classList.add('hidden');
-                                                                    select.classList.remove('hidden');
-                                                                    select.value = select.options[0].value;
-                                                                    input.value = select.value;
-                                                                }
-                                                            });
-
-                                                            // Allow clicking to edit custom status
-                                                            input.addEventListener('click', function () {
-                                                                if (!input.classList.contains('hidden')) {
-                                                                    input.select();
-                                                                }
-                                                            });
-                                                        }
-                                                    });
-
-                                                    // Phone number formatting
-                                                    function formatPhoneNumber(input) {
-                                                        var numbers = input.value.replace(/[^0-9]/g, '');
-                                                        var formatted = '';
-
-                                                        if (numbers.startsWith('02')) {
-                                                            // Seoul area code
-                                                            if (numbers.length < 3) {
-                                                                formatted = numbers;
-                                                            } else if (numbers.length < 6) {
-                                                                formatted = numbers.slice(0, 2) + '-' + numbers.slice(2);
-                                                            } else if (numbers.length < 10) {
-                                                                formatted = numbers.slice(0, 2) + '-' + numbers.slice(2, 5) + '-' + numbers.slice(5);
-                                                            } else {
-                                                                formatted = numbers.slice(0, 2) + '-' + numbers.slice(2, 6) + '-' + numbers.slice(6, 10);
-                                                            }
-                                                        } else if (numbers.startsWith('01')) {
-                                                            // Mobile
-                                                            if (numbers.length < 4) {
-                                                                formatted = numbers;
-                                                            } else if (numbers.length < 8) {
-                                                                formatted = numbers.slice(0, 3) + '-' + numbers.slice(3);
-                                                            } else {
-                                                                formatted = numbers.slice(0, 3) + '-' + numbers.slice(3, 7) + '-' + numbers.slice(7, 11);
-                                                            }
+                                                    } else if (numbers.startsWith('01')) {
+                                                        // Mobile
+                                                        if (numbers.length < 4) {
+                                                            formatted = numbers;
+                                                        } else if (numbers.length < 8) {
+                                                            formatted = numbers.slice(0, 3) + '-' + numbers.slice(3);
                                                         } else {
-                                                            // Other area codes
-                                                            if (numbers.length < 4) {
-                                                                formatted = numbers;
-                                                            } else if (numbers.length < 7) {
-                                                                formatted = numbers.slice(0, 3) + '-' + numbers.slice(3);
-                                                            } else if (numbers.length < 11) {
-                                                                formatted = numbers.slice(0, 3) + '-' + numbers.slice(3, 6) + '-' + numbers.slice(6);
-                                                            } else {
-                                                                formatted = numbers.slice(0, 3) + '-' + numbers.slice(3, 7) + '-' + numbers.slice(7, 11);
-                                                            }
+                                                            formatted = numbers.slice(0, 3) + '-' + numbers.slice(3, 7) + '-' + numbers.slice(7, 11);
                                                         }
-
-                                                        input.value = formatted;
-                                                    }
-
-                                                    // Daum Postcode API
-                                                    function execDaumPostcode() {
-                                                        new daum.Postcode({
-                                                            oncomplete: function (data) {
-                                                                var addr = data.address; // 기본 주소
-                                                                document.getElementById('qa_client_addr').value = addr;
-                                                                document.getElementById('qa_client_addr2').focus();
-                                                            }
-                                                        }).open();
-                                                    }
-
-                                                    // ---------------------------------------------------------
-                                                    // 1. Data Initialization
-                                                    // ---------------------------------------------------------
-                                                    var step1_measures = <?php echo json_encode($step1_measures ?? []); ?>;
-                                                    var initial_items = <?php echo isset($items) ? json_encode($items) : '[]'; ?>;
-
-                                                    // ---------------------------------------------------------
-                                                    // 2. Item Table Logic (Expandable Rows)
-                                                    // ---------------------------------------------------------
-                                                    // ---------------------------------------------------------
-                                                    // Sidebar Tabs
-                                                    // ---------------------------------------------------------
-                                                    function switch_sidebar_tab(tab) {
-                                                        if (tab === 'summary') {
-                                                            document.getElementById('side_tab_summary').classList.remove('hidden');
-                                                            document.getElementById('side_tab_preview').classList.add('hidden');
-
-                                                            document.getElementById('tab_btn_summary').className = "flex-1 py-3 text-sm font-bold text-orange-600 border-b-2 border-orange-600 bg-white transition";
-                                                            document.getElementById('tab_btn_preview').className = "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition";
+                                                    } else {
+                                                        // Other area codes
+                                                        if (numbers.length < 4) {
+                                                            formatted = numbers;
+                                                        } else if (numbers.length < 7) {
+                                                            formatted = numbers.slice(0, 3) + '-' + numbers.slice(3);
+                                                        } else if (numbers.length < 11) {
+                                                            formatted = numbers.slice(0, 3) + '-' + numbers.slice(3, 6) + '-' + numbers.slice(6);
                                                         } else {
-                                                            document.getElementById('side_tab_summary').classList.add('hidden');
-                                                            document.getElementById('side_tab_preview').classList.remove('hidden');
-
-                                                            document.getElementById('tab_btn_summary').className = "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition";
-                                                            document.getElementById('tab_btn_preview').className = "flex-1 py-3 text-sm font-bold text-orange-600 border-b-2 border-orange-600 bg-white transition";
+                                                            formatted = numbers.slice(0, 3) + '-' + numbers.slice(3, 7) + '-' + numbers.slice(7, 11);
                                                         }
                                                     }
 
-                                                    // ---------------------------------------------------------
-                                                    // 2. Item Table Logic (Enhanced)
-                                                    // ---------------------------------------------------------
-                                                    function add_item_row(data = null, markDirty = true) {
-                                                        if (markDirty) isDirty = true; // Mark as dirty only if requested
-                                                        var container = document.getElementById('item_list_container');
-                                                        var idx = container.children.length / 2; // Each item has 2 trs (main + detail)
+                                                    input.value = formatted;
+                                                }
 
-                                                        var item = data ? data.qi_item : '';
-                                                        var spec = data ? data.qi_spec : '';
-                                                        var qty = data ? data.qi_qty : 1;
-                                                        var price = data ? data.qi_price : 0;
-                                                        var amount = data ? data.qi_amount : 0;
-                                                        var note = data ? data.qi_note : '';
-                                                        var desc = data ? data.qi_desc : '';
+                                                // Daum Postcode API
+                                                function execDaumPostcode() {
+                                                    new daum.Postcode({
+                                                        oncomplete: function (data) {
+                                                            var addr = data.address; // 기본 주소
+                                                            document.getElementById('qa_client_addr').value = addr;
+                                                            document.getElementById('qa_client_addr2').focus();
+                                                        }
+                                                    }).open();
+                                                }
 
-                                                        // Image Handling
-                                                        var img_html = '';
-                                                        for (var i = 1; i <= 3; i++) {
-                                                            var img_key = 'qi_img' + i;
-                                                            var img_val = data ? (data[img_key] || '') : '';
-                                                            var has_img = img_val !== '';
-                                                            var img_prev = has_img ? `<input type="hidden" name="${img_key}_prev[]" value="${img_val}">` : '';
-                                                            var img_preview = has_img ? `<img src="<?php echo G5_DATA_URL . '/quote/'; ?>${img_val}" class="w-full h-full object-cover rounded">` : `<span class="text-[10px] text-gray-300">IMG${i}</span>`;
-                                                            var del_btn = has_img ? `<div class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] cursor-pointer shadow z-10 hover:bg-red-600" onclick="delete_curr_image(this, '${img_key}_del[]')">&times;</div>` : '';
-                                                            var del_input = has_img ? `<input type="hidden" name="${img_key}_del[]" value="0" disabled>` : '';
+                                                // ---------------------------------------------------------
+                                                // 1. Data Initialization
+                                                // ---------------------------------------------------------
+                                                var step1_measures = <?php echo json_encode($step1_measures ?? []); ?>;
+                                                var initial_items = <?php echo isset($items) ? json_encode($items) : '[]'; ?>;
 
-                                                            img_html += `
+                                                // ---------------------------------------------------------
+                                                // 2. Item Table Logic (Expandable Rows)
+                                                // ---------------------------------------------------------
+                                                // ---------------------------------------------------------
+                                                // Sidebar Tabs
+                                                // ---------------------------------------------------------
+                                                function switch_sidebar_tab(tab) {
+                                                    if (tab === 'summary') {
+                                                        document.getElementById('side_tab_summary').classList.remove('hidden');
+                                                        document.getElementById('side_tab_preview').classList.add('hidden');
+
+                                                        document.getElementById('tab_btn_summary').className = "flex-1 py-3 text-sm font-bold text-orange-600 border-b-2 border-orange-600 bg-white transition";
+                                                        document.getElementById('tab_btn_preview').className = "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition";
+                                                    } else {
+                                                        document.getElementById('side_tab_summary').classList.add('hidden');
+                                                        document.getElementById('side_tab_preview').classList.remove('hidden');
+
+                                                        document.getElementById('tab_btn_summary').className = "flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition";
+                                                        document.getElementById('tab_btn_preview').className = "flex-1 py-3 text-sm font-bold text-orange-600 border-b-2 border-orange-600 bg-white transition";
+                                                    }
+                                                }
+
+                                                // ---------------------------------------------------------
+                                                // 2. Item Table Logic (Enhanced)
+                                                // ---------------------------------------------------------
+                                                function add_item_row(data = null, markDirty = true) {
+                                                    if (markDirty) isDirty = true; // Mark as dirty only if requested
+                                                    var container = document.getElementById('item_list_container');
+                                                    var idx = container.children.length / 2; // Each item has 2 trs (main + detail)
+
+                                                    var item = data ? data.qi_item : '';
+                                                    var spec = data ? data.qi_spec : '';
+                                                    var qty = data ? data.qi_qty : 1;
+                                                    var price = data ? data.qi_price : 0;
+                                                    var amount = data ? data.qi_amount : 0;
+                                                    var note = data ? data.qi_note : '';
+                                                    var desc = data ? data.qi_desc : '';
+
+                                                    // Image Handling
+                                                    var img_html = '';
+                                                    for (var i = 1; i <= 3; i++) {
+                                                        var img_key = 'qi_img' + i;
+                                                        var img_val = data ? (data[img_key] || '') : '';
+                                                        var has_img = img_val !== '';
+                                                        var img_prev = has_img ? `<input type="hidden" name="${img_key}_prev[]" value="${img_val}">` : '';
+                                                        var img_preview = has_img ? `<img src="<?php echo G5_DATA_URL . '/quote/'; ?>${img_val}" class="w-full h-full object-cover rounded">` : `<span class="text-[10px] text-gray-300">IMG${i}</span>`;
+                                                        var del_btn = has_img ? `<div class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] cursor-pointer shadow z-10 hover:bg-red-600" onclick="delete_curr_image(this, '${img_key}_del[]')">&times;</div>` : '';
+                                                        var del_input = has_img ? `<input type="hidden" name="${img_key}_del[]" value="0" disabled>` : '';
+
+                                                        img_html += `
                     <div class="relative group">
                         <div class="cursor-pointer block w-14 h-14 border border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 flex items-center justify-center overflow-hidden transition relative focus:ring-2 focus:ring-orange-500 outline-none" 
                                onclick="show_image_upload_menu(this)" tabindex="0" title="클릭하여 이미지 업로드">
@@ -1403,14 +1403,14 @@ include_once(G5_THEME_PATH . '/head.php');
                         ${del_btn}
                         ${del_input}
                     </div>`;
-                                                        }
+                                                    }
 
-                                                        // Auto-expand if details exist
-                                                        var has_data = (desc !== '' || data && (data.qi_img1 || data.qi_img2 || data.qi_img3));
-                                                        var detail_cls = has_data ? 'detail-row bg-gray-50 border-b border-gray-200 shadow-inner' : 'detail-row hidden bg-gray-50 border-b border-gray-200 shadow-inner';
-                                                        var rotate_cls = has_data ? 'rotate-180' : '';
+                                                    // Auto-expand if details exist
+                                                    var has_data = (desc !== '' || data && (data.qi_img1 || data.qi_img2 || data.qi_img3));
+                                                    var detail_cls = has_data ? 'detail-row bg-gray-50 border-b border-gray-200 shadow-inner' : 'detail-row hidden bg-gray-50 border-b border-gray-200 shadow-inner';
+                                                    var rotate_cls = has_data ? 'rotate-180' : '';
 
-                                                        var html = `
+                                                    var html = `
                 <!-- Main Row -->
                 <tr class="main-row group bg-white hover:bg-gray-50 transition border-b border-gray-100 text-sm">
                     <td class="py-2 pl-1 md:pl-2 text-center align-middle">
@@ -1465,149 +1465,149 @@ include_once(G5_THEME_PATH . '/head.php');
                 </tr>
                 `;
 
-                                                        container.insertAdjacentHTML('beforeend', html);
+                                                    container.insertAdjacentHTML('beforeend', html);
 
-                                                        // Set textarea value safely
-                                                        if (desc) {
-                                                            // Find the last added textarea
-                                                            var textareas = container.querySelectorAll('textarea[name="qi_desc[]"]');
-                                                            textareas[textareas.length - 1].value = desc;
-                                                        }
-
-                                                        if (data) calc_total(false);
-                                                        if (!data && container.lastElementChild) {
-                                                            var inputs = container.querySelectorAll('.in-item');
-                                                            inputs[inputs.length - 1].focus();
-                                                        }
+                                                    // Set textarea value safely
+                                                    if (desc) {
+                                                        // Find the last added textarea
+                                                        var textareas = container.querySelectorAll('textarea[name="qi_desc[]"]');
+                                                        textareas[textareas.length - 1].value = desc;
                                                     }
 
-                                                    function toggle_detail(btn) {
-                                                        var tr = btn.closest('tr');
-                                                        var nextTr = tr.nextElementSibling;
-                                                        if (nextTr && nextTr.classList.contains('detail-row')) {
-                                                            nextTr.classList.toggle('hidden');
-                                                            var icon = btn.querySelector('svg');
-                                                            if (nextTr.classList.contains('hidden')) {
-                                                                icon.classList.remove('rotate-180');
-                                                            } else {
-                                                                icon.classList.add('rotate-180');
-                                                            }
+                                                    if (data) calc_total(false);
+                                                    if (!data && container.lastElementChild) {
+                                                        var inputs = container.querySelectorAll('.in-item');
+                                                        inputs[inputs.length - 1].focus();
+                                                    }
+                                                }
+
+                                                function toggle_detail(btn) {
+                                                    var tr = btn.closest('tr');
+                                                    var nextTr = tr.nextElementSibling;
+                                                    if (nextTr && nextTr.classList.contains('detail-row')) {
+                                                        nextTr.classList.toggle('hidden');
+                                                        var icon = btn.querySelector('svg');
+                                                        if (nextTr.classList.contains('hidden')) {
+                                                            icon.classList.remove('rotate-180');
+                                                        } else {
+                                                            icon.classList.add('rotate-180');
                                                         }
                                                     }
+                                                }
 
-                                                    function check_enter_add(e, el) {
-                                                        // Only Trigger on Enter
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            var tr = el.closest('tr');
-                                                            var container = document.getElementById('item_list_container');
-
-                                                            // If it's the last row, add new row
-                                                            // Check if this tr is the one before the last detail row
-                                                            // Actually, container has pairs of rows (Main, Detail).
-                                                            // So checking if tr is the SECOND TO LAST block (Main) or Last Block?
-
-                                                            var mainRows = container.querySelectorAll('.main-row');
-                                                            var lastRow = mainRows[mainRows.length - 1];
-
-                                                            if (tr === lastRow) {
-                                                                add_item_row();
-                                                            }
-                                                        }
-                                                    }
-
-                                                    function del_row(btn) {
-                                                        isDirty = true; // Mark as dirty
-                                                        var tr = btn.closest('tr');
-                                                        var detailTr = tr.nextElementSibling;
-                                                        if (document.querySelectorAll('.main-row').length <= 1) {
-                                                            // Clear values instead of delete if only 1 exists
-                                                            tr.querySelectorAll('input:not([type=hidden])').forEach(i => i.value = '');
-                                                            tr.querySelectorAll('input[type=number]').forEach(i => i.value = '1');
-                                                            calc_row(tr.querySelector('.in-qty'));
-                                                            return;
-                                                        }
-                                                        tr.remove();
-                                                        if (detailTr) detailTr.remove();
-                                                        calc_total();
-                                                    }
-
-                                                    function mark_dirty() {
-                                                        isDirty = true;
-                                                    }
-
-                                                    function calc_row(el) {
-                                                        isDirty = true; // Mark as dirty on any calc/change
+                                                function check_enter_add(e, el) {
+                                                    // Only Trigger on Enter
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
                                                         var tr = el.closest('tr');
+                                                        var container = document.getElementById('item_list_container');
+
+                                                        // If it's the last row, add new row
+                                                        // Check if this tr is the one before the last detail row
+                                                        // Actually, container has pairs of rows (Main, Detail).
+                                                        // So checking if tr is the SECOND TO LAST block (Main) or Last Block?
+
+                                                        var mainRows = container.querySelectorAll('.main-row');
+                                                        var lastRow = mainRows[mainRows.length - 1];
+
+                                                        if (tr === lastRow) {
+                                                            add_item_row();
+                                                        }
+                                                    }
+                                                }
+
+                                                function del_row(btn) {
+                                                    isDirty = true; // Mark as dirty
+                                                    var tr = btn.closest('tr');
+                                                    var detailTr = tr.nextElementSibling;
+                                                    if (document.querySelectorAll('.main-row').length <= 1) {
+                                                        // Clear values instead of delete if only 1 exists
+                                                        tr.querySelectorAll('input:not([type=hidden])').forEach(i => i.value = '');
+                                                        tr.querySelectorAll('input[type=number]').forEach(i => i.value = '1');
+                                                        calc_row(tr.querySelector('.in-qty'));
+                                                        return;
+                                                    }
+                                                    tr.remove();
+                                                    if (detailTr) detailTr.remove();
+                                                    calc_total();
+                                                }
+
+                                                function mark_dirty() {
+                                                    isDirty = true;
+                                                }
+
+                                                function calc_row(el) {
+                                                    isDirty = true; // Mark as dirty on any calc/change
+                                                    var tr = el.closest('tr');
+                                                    var qty = parseInt(tr.querySelector('.in-qty').value) || 0;
+                                                    var price = parseInt(tr.querySelector('.in-price').value.replace(/,/g, '')) || 0;
+
+                                                    var amt = qty * price;
+                                                    tr.querySelector('.in-amount').value = amt.toLocaleString();
+                                                    var hiddenAmt = tr.querySelector('input[name="qi_amount[]"]');
+                                                    if (hiddenAmt) hiddenAmt.value = amt;
+                                                    calc_total();
+                                                }
+
+                                                function calc_total(update_ui = true) {
+                                                    var supply = 0;
+                                                    document.querySelectorAll('.main-row').forEach(tr => {
                                                         var qty = parseInt(tr.querySelector('.in-qty').value) || 0;
                                                         var price = parseInt(tr.querySelector('.in-price').value.replace(/,/g, '')) || 0;
+                                                        supply += (qty * price);
+                                                    });
+                                                    var vat = Math.floor(supply * 0.1);
+                                                    var total = supply + vat;
 
-                                                        var amt = qty * price;
-                                                        tr.querySelector('.in-amount').value = amt.toLocaleString();
-                                                        var hiddenAmt = tr.querySelector('input[name="qi_amount[]"]');
-                                                        if (hiddenAmt) hiddenAmt.value = amt;
-                                                        calc_total();
+                                                    // Deposit
+                                                    var depositInput = document.getElementById('qa_deposit_dummy');
+                                                    var deposit = parseInt(depositInput.value.replace(/,/g, '')) || 0;
+
+                                                    if (update_ui) {
+                                                        document.getElementById('txt_supply').innerText = supply.toLocaleString();
+                                                        document.getElementById('txt_vat').innerText = vat.toLocaleString();
+                                                        document.getElementById('txt_total').innerText = total.toLocaleString();
+                                                        document.getElementById('txt_balance').innerText = (total - deposit).toLocaleString();
                                                     }
+                                                }
 
-                                                    function calc_total(update_ui = true) {
-                                                        var supply = 0;
-                                                        document.querySelectorAll('.main-row').forEach(tr => {
-                                                            var qty = parseInt(tr.querySelector('.in-qty').value) || 0;
-                                                            var price = parseInt(tr.querySelector('.in-price').value.replace(/,/g, '')) || 0;
-                                                            supply += (qty * price);
-                                                        });
-                                                        var vat = Math.floor(supply * 0.1);
-                                                        var total = supply + vat;
+                                                function sync_deposit(el) {
+                                                    var val = el.value.replace(/[^0-9]/g, '');
+                                                    el.value = parseInt(val || 0).toLocaleString();
+                                                    calc_total();
+                                                }
 
-                                                        // Deposit
-                                                        var depositInput = document.getElementById('qa_deposit_dummy');
-                                                        var deposit = parseInt(depositInput.value.replace(/,/g, '')) || 0;
+                                                function preview_image(input) {
+                                                    if (input.files && input.files[0]) {
+                                                        var reader = new FileReader();
+                                                        reader.onload = function (e) {
+                                                            var wrapper = input.parentElement;
+                                                            var oldImg = wrapper.querySelector('img');
+                                                            if (oldImg) oldImg.remove();
+                                                            var span = wrapper.querySelector('span'); // span with text
+                                                            if (span) span.style.display = 'none';
 
-                                                        if (update_ui) {
-                                                            document.getElementById('txt_supply').innerText = supply.toLocaleString();
-                                                            document.getElementById('txt_vat').innerText = vat.toLocaleString();
-                                                            document.getElementById('txt_total').innerText = total.toLocaleString();
-                                                            document.getElementById('txt_balance').innerText = (total - deposit).toLocaleString();
+                                                            var img = document.createElement('img');
+                                                            img.src = e.target.result;
+                                                            img.className = 'w-full h-full object-cover rounded';
+                                                            wrapper.appendChild(img);
                                                         }
+                                                        reader.readAsDataURL(input.files[0]);
                                                     }
+                                                }
 
-                                                    function sync_deposit(el) {
-                                                        var val = el.value.replace(/[^0-9]/g, '');
-                                                        el.value = parseInt(val || 0).toLocaleString();
-                                                        calc_total();
-                                                    }
+                                                // Show image upload menu
+                                                function show_image_upload_menu(wrapper) {
+                                                    var input = wrapper.querySelector('input[type="file"]');
+                                                    if (!input) return;
 
-                                                    function preview_image(input) {
-                                                        if (input.files && input.files[0]) {
-                                                            var reader = new FileReader();
-                                                            reader.onload = function (e) {
-                                                                var wrapper = input.parentElement;
-                                                                var oldImg = wrapper.querySelector('img');
-                                                                if (oldImg) oldImg.remove();
-                                                                var span = wrapper.querySelector('span'); // span with text
-                                                                if (span) span.style.display = 'none';
+                                                    // Check if image already exists
+                                                    var hasImage = wrapper.querySelector('img') !== null;
 
-                                                                var img = document.createElement('img');
-                                                                img.src = e.target.result;
-                                                                img.className = 'w-full h-full object-cover rounded';
-                                                                wrapper.appendChild(img);
-                                                            }
-                                                            reader.readAsDataURL(input.files[0]);
-                                                        }
-                                                    }
-
-                                                    // Show image upload menu
-                                                    function show_image_upload_menu(wrapper) {
-                                                        var input = wrapper.querySelector('input[type="file"]');
-                                                        if (!input) return;
-
-                                                        // Check if image already exists
-                                                        var hasImage = wrapper.querySelector('img') !== null;
-
-                                                        // Create modal
-                                                        var modal = document.createElement('div');
-                                                        modal.className = 'fixed inset-0 z-[10001] flex items-center justify-center bg-black bg-opacity-50';
-                                                        modal.innerHTML = `
+                                                    // Create modal
+                                                    var modal = document.createElement('div');
+                                                    modal.className = 'fixed inset-0 z-[10001] flex items-center justify-center bg-black bg-opacity-50';
+                                                    modal.innerHTML = `
                         <div class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-sm">
                             <h3 class="text-lg font-bold text-gray-900 mb-4">📷 이미지 업로드</h3>
                             <div class="space-y-3">
@@ -1640,235 +1640,235 @@ include_once(G5_THEME_PATH . '/head.php');
                         </div>
                     `;
 
-                                                        // Store reference
-                                                        modal.dataset.wrapper = '';
-                                                        modal._wrapper = wrapper;
-                                                        modal._input = input;
+                                                    // Store reference
+                                                    modal.dataset.wrapper = '';
+                                                    modal._wrapper = wrapper;
+                                                    modal._input = input;
 
-                                                        document.body.appendChild(modal);
+                                                    document.body.appendChild(modal);
 
-                                                        // Close on background click
-                                                        modal.addEventListener('click', function (e) {
-                                                            if (e.target === modal) {
-                                                                close_image_menu();
-                                                            }
-                                                        });
-                                                    }
-
-                                                    function select_file_upload(btn) {
-                                                        var modal = btn.closest('.fixed');
-                                                        var input = modal._input;
-                                                        if (input) {
-                                                            input.click();
+                                                    // Close on background click
+                                                    modal.addEventListener('click', function (e) {
+                                                        if (e.target === modal) {
+                                                            close_image_menu();
                                                         }
-                                                        close_image_menu();
+                                                    });
+                                                }
+
+                                                function select_file_upload(btn) {
+                                                    var modal = btn.closest('.fixed');
+                                                    var input = modal._input;
+                                                    if (input) {
+                                                        input.click();
                                                     }
+                                                    close_image_menu();
+                                                }
 
-                                                    function activate_paste_mode(btn) {
-                                                        var modal = btn.closest('.fixed');
-                                                        var wrapper = modal._wrapper;
+                                                function activate_paste_mode(btn) {
+                                                    var modal = btn.closest('.fixed');
+                                                    var wrapper = modal._wrapper;
 
-                                                        // Change button text
-                                                        btn.innerHTML = `
+                                                    // Change button text
+                                                    btn.innerHTML = `
                         <svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                         </svg>
                         Ctrl+V를 눌러주세요...
                     `;
-                                                        btn.classList.add('animate-pulse');
+                                                    btn.classList.add('animate-pulse');
 
-                                                        // Listen for paste
-                                                        var pasteHandler = function (e) {
-                                                            handle_paste_in_modal(e, wrapper, modal._input);
-                                                            document.removeEventListener('paste', pasteHandler);
-                                                            close_image_menu();
-                                                        };
+                                                    // Listen for paste
+                                                    var pasteHandler = function (e) {
+                                                        handle_paste_in_modal(e, wrapper, modal._input);
+                                                        document.removeEventListener('paste', pasteHandler);
+                                                        close_image_menu();
+                                                    };
 
-                                                        document.addEventListener('paste', pasteHandler);
+                                                    document.addEventListener('paste', pasteHandler);
 
-                                                        // Auto close after 10 seconds
-                                                        setTimeout(function () {
-                                                            document.removeEventListener('paste', pasteHandler);
-                                                        }, 10000);
-                                                    }
+                                                    // Auto close after 10 seconds
+                                                    setTimeout(function () {
+                                                        document.removeEventListener('paste', pasteHandler);
+                                                    }, 10000);
+                                                }
 
-                                                    function handle_paste_in_modal(event, wrapper, input) {
-                                                        var items = (event.clipboardData || event.originalEvent.clipboardData).items;
+                                                function handle_paste_in_modal(event, wrapper, input) {
+                                                    var items = (event.clipboardData || event.originalEvent.clipboardData).items;
 
-                                                        for (var i = 0; i < items.length; i++) {
-                                                            if (items[i].type.indexOf('image') !== -1) {
-                                                                var blob = items[i].getAsFile();
+                                                    for (var i = 0; i < items.length; i++) {
+                                                        if (items[i].type.indexOf('image') !== -1) {
+                                                            var blob = items[i].getAsFile();
 
-                                                                if (input && blob) {
-                                                                    var dataTransfer = new DataTransfer();
-                                                                    var file = new File([blob], 'pasted_image_' + Date.now() + '.png', { type: blob.type });
-                                                                    dataTransfer.items.add(file);
-                                                                    input.files = dataTransfer.files;
+                                                            if (input && blob) {
+                                                                var dataTransfer = new DataTransfer();
+                                                                var file = new File([blob], 'pasted_image_' + Date.now() + '.png', { type: blob.type });
+                                                                dataTransfer.items.add(file);
+                                                                input.files = dataTransfer.files;
 
-                                                                    preview_image(input);
+                                                                preview_image(input);
 
-                                                                    // Visual feedback
-                                                                    wrapper.style.borderColor = '#ea580c';
-                                                                    wrapper.style.borderWidth = '2px';
-                                                                    setTimeout(function () {
-                                                                        wrapper.style.borderColor = '';
-                                                                        wrapper.style.borderWidth = '';
-                                                                    }, 500);
-                                                                }
-                                                                break;
+                                                                // Visual feedback
+                                                                wrapper.style.borderColor = '#ea580c';
+                                                                wrapper.style.borderWidth = '2px';
+                                                                setTimeout(function () {
+                                                                    wrapper.style.borderColor = '';
+                                                                    wrapper.style.borderWidth = '';
+                                                                }, 500);
                                                             }
+                                                            break;
                                                         }
                                                     }
+                                                }
 
-                                                    function remove_current_image(btn) {
-                                                        var modal = btn.closest('.fixed');
-                                                        var wrapper = modal._wrapper;
-                                                        var container = wrapper.closest('.relative');
+                                                function remove_current_image(btn) {
+                                                    var modal = btn.closest('.fixed');
+                                                    var wrapper = modal._wrapper;
+                                                    var container = wrapper.closest('.relative');
 
-                                                        // Clear file input
-                                                        var input = wrapper.querySelector('input[type="file"]');
-                                                        if (input) {
-                                                            input.value = '';
-                                                        }
+                                                    // Clear file input
+                                                    var input = wrapper.querySelector('input[type="file"]');
+                                                    if (input) {
+                                                        input.value = '';
+                                                    }
 
-                                                        // Remove image preview
-                                                        var img = wrapper.querySelector('img');
-                                                        if (img) {
-                                                            img.remove();
-                                                        }
+                                                    // Remove image preview
+                                                    var img = wrapper.querySelector('img');
+                                                    if (img) {
+                                                        img.remove();
+                                                    }
 
-                                                        // Show placeholder
-                                                        var span = wrapper.querySelector('span');
-                                                        if (!span) {
-                                                            span = document.createElement('span');
-                                                            span.className = 'text-[10px] text-gray-300';
-                                                            span.textContent = 'IMG';
-                                                            wrapper.appendChild(span);
-                                                        }
-                                                        span.style.display = 'block';
+                                                    // Show placeholder
+                                                    var span = wrapper.querySelector('span');
+                                                    if (!span) {
+                                                        span = document.createElement('span');
+                                                        span.className = 'text-[10px] text-gray-300';
+                                                        span.textContent = 'IMG';
+                                                        wrapper.appendChild(span);
+                                                    }
+                                                    span.style.display = 'block';
 
-                                                        // Mark for deletion if it was a saved image
-                                                        var delInput = container.querySelector('input[name*="_del"]');
+                                                    // Mark for deletion if it was a saved image
+                                                    var delInput = container.querySelector('input[name*="_del"]');
+                                                    if (delInput) {
+                                                        delInput.disabled = false;
+                                                        delInput.value = '1';
+                                                    }
+
+                                                    // Remove delete button
+                                                    var delBtn = container.querySelector('.absolute.bg-red-500');
+                                                    if (delBtn) {
+                                                        delBtn.remove();
+                                                    }
+
+                                                    close_image_menu();
+                                                }
+
+                                                function close_image_menu() {
+                                                    var modal = document.querySelector('.fixed.z-\\[10001\\]');
+                                                    if (modal) {
+                                                        modal.remove();
+                                                    }
+                                                }
+
+                                                function delete_curr_image(btn, name) {
+                                                    if (confirm('이미지를 삭제하시겠습니까?')) {
+                                                        var container = btn.closest('.relative');
+                                                        var delInput = container.querySelector('input[type="hidden"][disabled]');
                                                         if (delInput) {
                                                             delInput.disabled = false;
                                                             delInput.value = '1';
                                                         }
 
-                                                        // Remove delete button
-                                                        var delBtn = container.querySelector('.absolute.bg-red-500');
-                                                        if (delBtn) {
-                                                            delBtn.remove();
-                                                        }
+                                                        var wrapper = container.querySelector('div[onclick^="show_image_upload_menu"]');
+                                                        if (!wrapper) wrapper = container.querySelector('.cursor-pointer');
 
-                                                        close_image_menu();
-                                                    }
+                                                        if (wrapper) {
+                                                            var img = wrapper.querySelector('img');
+                                                            if (img) img.remove();
 
-                                                    function close_image_menu() {
-                                                        var modal = document.querySelector('.fixed.z-\\[10001\\]');
-                                                        if (modal) {
-                                                            modal.remove();
-                                                        }
-                                                    }
-
-                                                    function delete_curr_image(btn, name) {
-                                                        if (confirm('이미지를 삭제하시겠습니까?')) {
-                                                            var container = btn.closest('.relative');
-                                                            var delInput = container.querySelector('input[type="hidden"][disabled]');
-                                                            if (delInput) {
-                                                                delInput.disabled = false;
-                                                                delInput.value = '1';
+                                                            var span = wrapper.querySelector('span');
+                                                            if (span) {
+                                                                span.style.display = 'block';
+                                                                span.innerHTML = 'DEL';
+                                                            } else {
+                                                                wrapper.insertAdjacentHTML('afterbegin', '<span class="text-xs text-red-300 font-bold">DEL</span>');
                                                             }
-
-                                                            var wrapper = container.querySelector('div[onclick^="show_image_upload_menu"]');
-                                                            if (!wrapper) wrapper = container.querySelector('.cursor-pointer');
-
-                                                            if (wrapper) {
-                                                                var img = wrapper.querySelector('img');
-                                                                if (img) img.remove();
-
-                                                                var span = wrapper.querySelector('span');
-                                                                if (span) {
-                                                                    span.style.display = 'block';
-                                                                    span.innerHTML = 'DEL';
-                                                                } else {
-                                                                    wrapper.insertAdjacentHTML('afterbegin', '<span class="text-xs text-red-300 font-bold">DEL</span>');
-                                                                }
-                                                            }
-
-                                                            btn.remove();
                                                         }
+
+                                                        btn.remove();
                                                     }
+                                                }
 
-                                                    function switch_sidebar(mode) {
-                                                        // Deprecated but kept for safety if called elsewhere.
-                                                        // Redirect to new tab logic?
-                                                        switch_sidebar_tab(mode);
+                                                function switch_sidebar(mode) {
+                                                    // Deprecated but kept for safety if called elsewhere.
+                                                    // Redirect to new tab logic?
+                                                    switch_sidebar_tab(mode);
+                                                }
+
+                                                window.addEventListener('DOMContentLoaded', function () {
+                                                    if (initial_items && initial_items.length > 0) {
+                                                        initial_items.forEach(item => add_item_row(item, false));
+                                                    } else {
+                                                        add_item_row(null, false);
                                                     }
+                                                    calc_total();
 
-                                                    window.addEventListener('DOMContentLoaded', function () {
-                                                        if (initial_items && initial_items.length > 0) {
-                                                            initial_items.forEach(item => add_item_row(item, false));
-                                                        } else {
-                                                            add_item_row(null, false);
-                                                        }
-                                                        calc_total();
-
-                                                        document.getElementById('fquote').addEventListener('submit', function (e) {
-                                                            var dep = document.getElementById('qa_deposit_dummy');
-                                                            var hidden = document.createElement('input');
-                                                            hidden.type = 'hidden';
-                                                            hidden.name = 'qa_deposit';
-                                                            this.appendChild(hidden);
-                                                        });                                                                                                              // Add Item Button Listener
-                                                        var btnAdd = document.getElementById('btn_add_item_row');
-                                                        if (btnAdd) {
-                                                            btnAdd.addEventListener('click', function () {
-                                                                add_item_row();
-                                                            });
-                                                        }
-
-                                                        // Reset dirty state after initial load
-                                                        setTimeout(function () { isDirty = false; }, 100);
-                                                    });
-
-                                                    function copy_share_link(url) {
-                                                        if (!navigator.clipboard) {
-                                                            prompt("아래 주소를 복사하세요:", url);
-                                                            return;
-                                                        }
-                                                        navigator.clipboard.writeText(url).then(function () {
-                                                            alert('공유 링크가 클립보드에 복사되었습니다.');
-                                                        }, function (err) {
-                                                            prompt("아래 주소를 복사하세요:", url);
+                                                    document.getElementById('fquote').addEventListener('submit', function (e) {
+                                                        var dep = document.getElementById('qa_deposit_dummy');
+                                                        var hidden = document.createElement('input');
+                                                        hidden.type = 'hidden';
+                                                        hidden.name = 'qa_deposit';
+                                                        this.appendChild(hidden);
+                                                    });                                                                                                              // Add Item Button Listener
+                                                    var btnAdd = document.getElementById('btn_add_item_row');
+                                                    if (btnAdd) {
+                                                        btnAdd.addEventListener('click', function () {
+                                                            add_item_row();
                                                         });
                                                     }
 
-                                                    function send_mail_confirm() {
-                                                        if (typeof open_confirm === 'function') {
-                                                            open_confirm('이 고객에게 견적서를 이메일로 발송하시겠습니까?', function () {
-                                                                location.href = '?w=send_mail&qa_id=<?php echo $qa_id; ?>&token=<?php echo $token; ?>';
-                                                            });
-                                                        } else {
-                                                            if (confirm('이 고객에게 견적서를 이메일로 발송하시겠습니까?')) {
-                                                                location.href = '?w=send_mail&qa_id=<?php echo $qa_id; ?>&token=<?php echo $token; ?>';
-                                                            }
+                                                    // Reset dirty state after initial load
+                                                    setTimeout(function () { isDirty = false; }, 100);
+                                                });
+
+                                                function copy_share_link(url) {
+                                                    if (!navigator.clipboard) {
+                                                        prompt("아래 주소를 복사하세요:", url);
+                                                        return;
+                                                    }
+                                                    navigator.clipboard.writeText(url).then(function () {
+                                                        alert('공유 링크가 클립보드에 복사되었습니다.');
+                                                    }, function (err) {
+                                                        prompt("아래 주소를 복사하세요:", url);
+                                                    });
+                                                }
+
+                                                function send_mail_confirm() {
+                                                    if (typeof open_confirm === 'function') {
+                                                        open_confirm('이 고객에게 견적서를 이메일로 발송하시겠습니까?', function () {
+                                                            location.href = '?w=send_mail&qa_id=<?php echo $qa_id; ?>&token=<?php echo $token; ?>';
+                                                        });
+                                                    } else {
+                                                        if (confirm('이 고객에게 견적서를 이메일로 발송하시겠습니까?')) {
+                                                            location.href = '?w=send_mail&qa_id=<?php echo $qa_id; ?>&token=<?php echo $token; ?>';
                                                         }
                                                     }
-                                                </script>
+                                                }
+                                            </script>
 
 
-                                            </div> <!-- End Left Form Area (space-y-6) -->
-                                        </div> <!-- End space-y-6 wrapper -->
-                                    </div> <!-- End empty wrapper -->
-                                </div> <!-- End Main Content (col-9) -->
+                                        </div> <!-- End Left Form Area (space-y-6) -->
+                                    </div> <!-- End space-y-6 wrapper -->
+                                </div> <!-- End empty wrapper -->
+                            </div> <!-- End Main Content (col-9) -->
 
-                                <!--  Side Dashboard Area (3/12) -->
-                                <div class="col-span-12 lg:col-span-3">
-                                    <?php include_once(G5_THEME_PATH . '/admin_quote_sidebar.php'); ?>
-                                </div>
-                            </div><!-- /.grid -->
-                        </form>
-                    </div> <!-- End Admin Container -->
+                            <!--  Side Dashboard Area (3/12) -->
+                            <div class="col-span-12 lg:col-span-3">
+                                <?php include_once(G5_THEME_PATH . '/admin_quote_sidebar.php'); ?>
+                            </div>
+                        </div><!-- /.grid -->
+                    </form>
+                </div> <!-- End Admin Container -->
             <?php endif; // End of Form View ?>
         </div><!-- /.container -->
 
@@ -1982,18 +1982,18 @@ include_once(G5_THEME_PATH . '/head.php');
                             <input type="file" name="company_seal" accept="image/*"
                                 class="w-full border border-gray-300 p-2.5 rounded focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm">
                             <?php if (!empty($biz_info['company_seal'])): ?>
-                                    <div class="mt-3 flex items-center gap-3">
-                                        <img src="<?php echo G5_DATA_URL . '/quote/' . $biz_info['company_seal']; ?>"
-                                            alt="현재 직인" class="h-20 w-20 object-contain border rounded bg-gray-50 p-2">
-                                        <div>
-                                            <p class="text-xs text-gray-600">현재 등록된 직인</p>
-                                            <label class="inline-flex items-center mt-1">
-                                                <input type="checkbox" name="delete_seal" value="1"
-                                                    class="rounded border-gray-300 text-red-600 focus:ring-red-500">
-                                                <span class="ml-2 text-xs text-red-600">직인 삭제</span>
-                                            </label>
-                                        </div>
+                                <div class="mt-3 flex items-center gap-3">
+                                    <img src="<?php echo G5_DATA_URL . '/quote/' . $biz_info['company_seal']; ?>"
+                                        alt="현재 직인" class="h-20 w-20 object-contain border rounded bg-gray-50 p-2">
+                                    <div>
+                                        <p class="text-xs text-gray-600">현재 등록된 직인</p>
+                                        <label class="inline-flex items-center mt-1">
+                                            <input type="checkbox" name="delete_seal" value="1"
+                                                class="rounded border-gray-300 text-red-600 focus:ring-red-500">
+                                            <span class="ml-2 text-xs text-red-600">직인 삭제</span>
+                                        </label>
                                     </div>
+                                </div>
                             <?php endif; ?>
                             <p class="text-xs text-gray-500 mt-2">💡 권장 크기: 200x200px, PNG 파일 권장 (투명 배경)</p>
                         </div>

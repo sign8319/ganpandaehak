@@ -107,7 +107,7 @@ if ($w == 'ajax_save_header') {
         $cust = sql_fetch(" SELECT * FROM g5_customer WHERE customer_id = '$cust_id' ");
         if ($cust && (($quote['qa_customer_id'] ?? 0) != $cust_id || empty($quote['qa_tax_company_name']))) {
             $tax_fields = [
-                'qa_tax_company_name' => 'tax_company_name',
+                'qa_tax_company_name' => 'customer_company',
                 'qa_tax_biz_num' => 'tax_biz_num',
                 'qa_tax_ceo_name' => 'tax_ceo_name',
                 'qa_tax_addr' => 'tax_addr',

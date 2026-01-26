@@ -1,5 +1,11 @@
 <?php
 include_once('./_common.php');
+
+// ============ DEBUG: 실행 파일 확인용 (확인 후 삭제) ============
+$debug_file_check = true;
+// die("✅ 이 파일이 실행됨: " . __FILE__ . " / 수정시간: " . date('Y-m-d H:i:s', filemtime(__FILE__)));
+// ================================================================
+
 if (!$is_admin) {
     alert('관리자만 접근 가능합니다.', G5_URL);
 }
@@ -25,7 +31,12 @@ foreach ($categories as $cat) {
         $prod_result = sql_query($prod_sql);
         while ($prod = sql_fetch_array($prod_result)) {
             $options = [];
-            $opt_sql = "SELECT * FROM g5_quote_options WHERE product_id = {$prod['id']} ORDER BY sort_order ASC";
+            // [MOD] 옵션 마스터 테이블(g5_quote_options)과 연결 테이블(g5_quote_product_options) JOIN 조회
+            $opt_sql = "SELECT O.*, PO.sort_order as link_order 
+                        FROM g5_quote_options O 
+                        JOIN g5_quote_product_options PO ON O.id = PO.option_id 
+                        WHERE PO.product_id = {$prod['id']} AND PO.is_active = 1 
+                        ORDER BY PO.sort_order ASC, O.sort_order ASC";
             $opt_result = sql_query($opt_sql);
             while ($opt = sql_fetch_array($opt_result)) {
                 $option_data = [
@@ -43,6 +54,7 @@ foreach ($categories as $cat) {
             }
             $product_data = [
                 'name' => $prod['name'],
+                'subcategory_name' => $sub['name'],
                 'unit_price' => (float) $prod['unit_price'],
                 'unit' => $prod['unit'],
                 'calc_type' => $prod['calc_type'],
@@ -50,10 +62,16 @@ foreach ($categories as $cat) {
                 'description' => $prod['description'],
                 'options' => $options,
                 'use_width_pricing' => (int) ($prod['use_width_pricing'] ?? 0),
+                'pricing_mode' => $prod['pricing_mode'] ?? 'DEFAULT',
                 'price_small' => (float) ($prod['price_small'] ?? 0),
                 'price_large' => (float) ($prod['price_large'] ?? 0),
                 'price_xlarge' => (float) ($prod['price_xlarge'] ?? 0),
-                'width_surcharge_1800' => (float) ($prod['width_surcharge_1800'] ?? 0)
+                'width_surcharge_1800' => (float) ($prod['width_surcharge_1800'] ?? 0),
+                // AREA_TIER 면적구간 요금 필드
+                'area_tier_piece_under_1' => (int) ($prod['area_tier_piece_under_1'] ?? 0),
+                'area_tier_piece_1_to_3' => (int) ($prod['area_tier_piece_1_to_3'] ?? 0),
+                'area_tier_m2_over_3' => (int) ($prod['area_tier_m2_over_3'] ?? 0),
+                'area_tier_surcharge_1800' => (int) ($prod['area_tier_surcharge_1800'] ?? 0)
             ];
             if ($prod['min_area']) {
                 $product_data['min_area'] = (float) $prod['min_area'];
@@ -279,7 +297,10 @@ foreach ($categories as $cat) {
     let selectedOptions = [];
     let cart = [];
 
-    document.addEventListener('DOMContentLoaded', function () { selectCategory(currentCategory); });
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('🔹 [DEBUG] admin_quote_calc.php JS 로드됨 - 시간:', new Date().toISOString());
+        selectCategory(currentCategory);
+    });
 
     function selectCategory(category) {
         currentCategory = category;
@@ -485,66 +506,147 @@ foreach ($categories as $cat) {
             const widthInfoBox = document.getElementById('width-info-box');
             const widthInfoText = document.getElementById('width-info-text');
 
-            if (currentProduct.use_width_pricing && rollWidth > 0) {
-                if (rollWidth > 4800) {
-                    // 제작불가
-                    widthType = '제작불가';
-                    widthInfoBox.className = 'p-3 rounded-lg border bg-red-50 border-red-200';
-                    widthInfoText.innerHTML = `<span class="text-red-600">⚠️ 폭 ${rollWidth}mm → <strong>제작불가</strong> (4800mm 초과)</span>`;
-                    widthInfoDiv.classList.remove('hidden');
-                    document.getElementById('result-total').textContent = '제작불가';
-                    document.getElementById('result-spec').textContent = `${inputWidth} × ${inputHeight}mm`;
-                    document.getElementById('add-cart-btn').disabled = true;
-                    return;
-                } else if (rollWidth > 3100) {
-                    unitPrice = (currentProduct.price_xlarge > 0) ? currentProduct.price_xlarge : currentProduct.unit_price;
-                    widthType = '초장폭';
-                    widthInfoBox.className = 'p-3 rounded-lg border bg-purple-50 border-purple-200';
-                } else if (rollWidth > 2100) {
-                    unitPrice = (currentProduct.price_large > 0) ? currentProduct.price_large : currentProduct.unit_price;
-                    widthType = '장폭';
-                    widthInfoBox.className = 'p-3 rounded-lg border bg-orange-50 border-orange-200';
+            // pricing_mode 결정 (자동판별 없이 DB 값 그대로 사용)
+            const pricingMode = currentProduct.pricing_mode || 'DEFAULT';
+
+            // ===== AREA_TIER 모드: 면적 구간 요금 (DB 값 사용) =====
+            if (pricingMode === 'AREA_TIER' && area > 0) {
+                const tierUnder1 = currentProduct.area_tier_piece_under_1 || 0;
+                const tier1to3 = currentProduct.area_tier_piece_1_to_3 || 0;
+                const tierOver3 = currentProduct.area_tier_m2_over_3 || 0;
+                const tierSurcharge = currentProduct.area_tier_surcharge_1800 || 0;
+
+                let tierPrice = 0;
+                let tierLabel = '';
+
+                if (area < 1 && tierUnder1 > 0) {
+                    tierPrice = tierUnder1;
+                    tierLabel = `1㎡ 미만 (장당 ${tierPrice.toLocaleString()}원)`;
+                    basePrice = tierPrice * quantity;
+                } else if (area < 3 && tier1to3 > 0) {
+                    tierPrice = tier1to3;
+                    tierLabel = `1~3㎡ (장당 ${tierPrice.toLocaleString()}원)`;
+                    basePrice = tierPrice * quantity;
+                } else if (tierOver3 > 0) {
+                    tierPrice = tierOver3;
+                    tierLabel = `3㎡ 이상 (㎡당 ${tierPrice.toLocaleString()}원)`;
+                    basePrice = tierPrice * area * quantity;
                 } else {
-                    unitPrice = (currentProduct.price_small > 0) ? currentProduct.price_small : currentProduct.unit_price;
-                    widthType = '단폭';
-                    widthInfoBox.className = 'p-3 rounded-lg border bg-green-50 border-green-200';
+                    // DB 값이 없으면 기본 단가 사용
+                    basePrice = currentProduct.unit_price * area * quantity;
+                    tierLabel = '기본 단가 적용';
                 }
 
-                // 폭 할증
-                let surchargeText = '';
-                if (rollWidth >= 1800 && currentProduct.width_surcharge_1800 > 0) {
-                    unitPrice += currentProduct.width_surcharge_1800;
-                    surchargeText = ` + 할증 ${currentProduct.width_surcharge_1800.toLocaleString()}원`;
+                // 폭 할증: roll_width >= 1800mm AND area >= 3㎡ AND tierSurcharge > 0
+                let surchargeApplied = false;
+                if (rollWidth >= 1800 && area >= 3 && tierSurcharge > 0) {
+                    basePrice += tierSurcharge * area * quantity;
+                    surchargeApplied = true;
                 }
 
-                widthInfoText.innerHTML = `폭 ${rollWidth}mm → <strong>${widthType}</strong> 단가 적용 (㎡당 ${unitPrice.toLocaleString()}원${surchargeText})`;
+                // UI 표시
+                widthInfoBox.className = 'p-3 rounded-lg border bg-orange-50 border-orange-200';
+                let infoHtml = `<span class="text-orange-700">📊 면적 ${area.toFixed(2)}㎡ → <strong>${tierLabel}</strong></span>`;
+                if (surchargeApplied) {
+                    infoHtml += `<br><span class="text-red-600">+ 폭 할증 (${rollWidth}mm ≥ 1800mm): ㎡당 ${tierSurcharge.toLocaleString()}원 추가</span>`;
+                }
+                widthInfoText.innerHTML = infoHtml;
                 widthInfoDiv.classList.remove('hidden');
 
-                // 견적 결과 폭 기준 표시
+                // 결과 표시
                 const widthTypeDiv = document.getElementById('result-width-type');
                 const widthTypeText = document.getElementById('result-width-text');
-                if (widthType && widthType !== '제작불가') {
-                    widthTypeText.textContent = `폭 기준: ${widthType} 단가 적용`;
-                    widthTypeDiv.classList.remove('hidden');
+                widthTypeText.textContent = `면적 구간 요금 적용${surchargeApplied ? ' + 폭 할증' : ''}`;
+                widthTypeDiv.classList.remove('hidden');
+
+                if (currentProduct.apply_rounding && (inputWidth !== width || inputHeight !== height)) {
+                    spec = `${inputWidth} × ${inputHeight}mm → ${width} × ${height}mm (${area.toFixed(2)}㎡) × ${quantity}개 [면적구간]`;
                 } else {
-                    widthTypeDiv.classList.add('hidden');
+                    spec = `${width} × ${height}mm (${area.toFixed(2)}㎡) × ${quantity}개 [면적구간]`;
                 }
-            } else {
+            }
+            // ===== WIDTH 모드: 폭별 단가 강제 적용 (use_width_pricing 무관) =====
+            else if (pricingMode === 'WIDTH' || (pricingMode === 'DEFAULT' && currentProduct.use_width_pricing)) {
+                if (rollWidth > 0) {
+                    if (rollWidth > 4800) {
+                        // 제작불가
+                        widthType = '제작불가';
+                        widthInfoBox.className = 'p-3 rounded-lg border bg-red-50 border-red-200';
+                        widthInfoText.innerHTML = `<span class="text-red-600">⚠️ 폭 ${rollWidth}mm → <strong>제작불가</strong> (4800mm 초과)</span>`;
+                        widthInfoDiv.classList.remove('hidden');
+                        document.getElementById('result-total').textContent = '제작불가';
+                        document.getElementById('result-spec').textContent = `${inputWidth} × ${inputHeight}mm`;
+                        document.getElementById('add-cart-btn').disabled = true;
+                        return;
+                    } else if (rollWidth > 3100) {
+                        unitPrice = (currentProduct.price_xlarge > 0) ? currentProduct.price_xlarge : currentProduct.unit_price;
+                        widthType = '초장폭';
+                        widthInfoBox.className = 'p-3 rounded-lg border bg-purple-50 border-purple-200';
+                    } else if (rollWidth > 2100) {
+                        unitPrice = (currentProduct.price_large > 0) ? currentProduct.price_large : currentProduct.unit_price;
+                        widthType = '장폭';
+                        widthInfoBox.className = 'p-3 rounded-lg border bg-orange-50 border-orange-200';
+                    } else {
+                        unitPrice = (currentProduct.price_small > 0) ? currentProduct.price_small : currentProduct.unit_price;
+                        widthType = '단폭';
+                        widthInfoBox.className = 'p-3 rounded-lg border bg-green-50 border-green-200';
+                    }
+
+                    // 폭 할증
+                    let surchargeText = '';
+                    if (rollWidth >= 1800 && currentProduct.width_surcharge_1800 > 0) {
+                        unitPrice += currentProduct.width_surcharge_1800;
+                        surchargeText = ` + 할증 ${currentProduct.width_surcharge_1800.toLocaleString()}원`;
+                    }
+
+                    widthInfoText.innerHTML = `폭 ${rollWidth}mm → <strong>${widthType}</strong> 단가 적용 (㎡당 ${unitPrice.toLocaleString()}원${surchargeText})`;
+                    widthInfoDiv.classList.remove('hidden');
+
+                    // 견적 결과 폭 기준 표시
+                    const widthTypeDiv = document.getElementById('result-width-type');
+                    const widthTypeText = document.getElementById('result-width-text');
+                    if (widthType && widthType !== '제작불가') {
+                        widthTypeText.textContent = `폭 기준: ${widthType} 단가 적용`;
+                        widthTypeDiv.classList.remove('hidden');
+                    } else {
+                        widthTypeDiv.classList.add('hidden');
+                    }
+                } else {
+                    widthInfoDiv.classList.add('hidden');
+                    document.getElementById('result-width-type').classList.add('hidden');
+                }
+
+                if (area > 0) {
+                    let calcArea = area;
+                    if (currentProduct.min_area && area < currentProduct.min_area) { calcArea = currentProduct.min_area; }
+                    basePrice = calcArea * unitPrice * quantity;
+                    if (currentProduct.apply_rounding && (inputWidth !== width || inputHeight !== height)) {
+                        spec = `${inputWidth} × ${inputHeight}mm → ${width} × ${height}mm (${area.toFixed(2)}㎡) × ${quantity}개`;
+                    } else {
+                        spec = `${width} × ${height}mm (${area.toFixed(2)}㎡) × ${quantity}개`;
+                    }
+                    if (widthType) {
+                        spec += ` [${widthType}]`;
+                    }
+                }
+            }
+            // ===== DEFAULT 모드: 기본 단가 사용 =====
+            else {
                 widthInfoDiv.classList.add('hidden');
                 document.getElementById('result-width-type').classList.add('hidden');
-            }
 
-            if (area > 0) {
-                let calcArea = area;
-                if (currentProduct.min_area && area < currentProduct.min_area) { calcArea = currentProduct.min_area; }
-                basePrice = calcArea * unitPrice * quantity;
-                if (currentProduct.apply_rounding && (inputWidth !== width || inputHeight !== height)) {
-                    spec = `${inputWidth} × ${inputHeight}mm → ${width} × ${height}mm (${area.toFixed(2)}㎡) × ${quantity}개`;
-                } else {
-                    spec = `${width} × ${height}mm (${area.toFixed(2)}㎡) × ${quantity}개`;
-                }
-                if (widthType) {
-                    spec += ` [${widthType}]`;
+                if (area > 0) {
+                    let calcArea = area;
+                    if (currentProduct.min_area && area < currentProduct.min_area) { calcArea = currentProduct.min_area; }
+                    basePrice = calcArea * unitPrice * quantity;
+                    if (currentProduct.apply_rounding && (inputWidth !== width || inputHeight !== height)) {
+                        spec = `${inputWidth} × ${inputHeight}mm → ${width} × ${height}mm (${area.toFixed(2)}㎡) × ${quantity}개`;
+                    } else {
+                        spec = `${width} × ${height}mm (${area.toFixed(2)}㎡) × ${quantity}개`;
+                    }
+                    if (widthType) {
+                        spec += ` [${widthType}]`;
+                    }
                 }
             }
         } else if (currentProduct.calc_type === 'text') {

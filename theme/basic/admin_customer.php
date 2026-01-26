@@ -186,6 +186,41 @@ if (in_array($w, ['ajax_create_quote', 'ajax_save_header', 'ajax_search', 'gener
         }
         exit;
     }
+
+    // AJAX: Update Status
+    if ($w == 'ajax_status_update') {
+        check_quote_token();
+        if ($customer_id) {
+            $status_step = clean_sql($_POST['status_step']);
+            $old_status = sql_fetch(" SELECT status_step FROM g5_customer_status WHERE customer_id = '$customer_id' ");
+
+            if ($old_status && $old_status['status_step'] != $status_step) {
+                sql_query(" INSERT INTO g5_customer_status_log SET
+                            customer_id = '$customer_id',
+                            before_step = '{$old_status['status_step']}',
+                            after_step = '$status_step',
+                            changed_by = '{$member['mb_id']}',
+                            changed_at = '" . G5_TIME_YMDHIS . "' ");
+
+                sql_query(" UPDATE g5_customer_status SET
+                            status_step = '$status_step',
+                            updated_at = '" . G5_TIME_YMDHIS . "',
+                            updated_by = '{$member['mb_id']}'
+                            WHERE customer_id = '$customer_id' ");
+            } elseif (!$old_status) {
+                sql_query(" INSERT INTO g5_customer_status SET
+                            customer_id = '$customer_id',
+                            status_step = '$status_step',
+                            updated_at = '" . G5_TIME_YMDHIS . "',
+                            updated_by = '{$member['mb_id']}' ");
+            }
+            save_work_from_customer($customer_id);
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false]);
+        }
+        exit;
+    }
 }
 
 
@@ -233,6 +268,7 @@ if ($w == 'register_complete' && $qa_id) {
         // If we have cust_id, update it.
         if ($cust_id > 0) {
             $cust_upd = [
+                'customer_company' => $qa_data['qa_tax_company_name'],
                 'tax_company_name' => $qa_data['qa_tax_company_name'],
                 'tax_biz_num' => $qa_data['qa_tax_biz_num'],
                 'tax_ceo_name' => $qa_data['qa_tax_ceo_name'],
@@ -264,6 +300,7 @@ if ($w == 'register_complete' && $qa_id) {
         // Insert new customer
         $sql = " insert into g5_customer
                     set customer_name = '{$quote['qa_client_name']}',
+                        customer_company = '{$quote['qa_tax_company_name']}',
                         customer_manager = '{$quote['qa_memo_user']}',
                         customer_hp = '{$quote['qa_client_hp']}',
                         customer_email = '{$quote['qa_client_email']}',
@@ -431,6 +468,7 @@ if ($w == 'save') {
         // Create new customer
         $sql = " INSERT INTO g5_customer SET
                  customer_name = '$customer_name',
+                 customer_company = '" . clean_sql($_POST['customer_company'] ?? '') . "',
                  customer_manager = '$customer_manager',
                  customer_hp = '$customer_hp',
                  customer_email = '$customer_email',
@@ -452,6 +490,7 @@ if ($w == 'save') {
         // Update existing customer
         $sql = " UPDATE g5_customer SET
                  customer_name = '$customer_name',
+                 customer_company = '" . clean_sql($_POST['customer_company'] ?? '') . "',
                  customer_manager = '$customer_manager',
                  customer_hp = '$customer_hp',
                  customer_email = '$customer_email',
@@ -1654,7 +1693,8 @@ include_once(G5_THEME_PATH . '/head.php');
                         }
                         close_confirm_modal();
                     };
-                      }});
+                }
+            });
         </script>
 
         <!-- Custom Confirm Modal (HTML) -->
@@ -1789,9 +1829,9 @@ include_once(G5_THEME_PATH . '/head.php');
                             <div class="flex justify-between items-center mb-4 border-b border-gray-200 pb-2">
                                 <h4 class="font-bold text-gray-700">DB 저장된 값 (Saved)</h4>
                                 <?php if (($quote_data['qa_tax_yn'] ?? '') != ''): ?>
-                                        <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-bold">저장됨</span>
+                                    <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-bold">저장됨</span>
                                 <?php else: ?>
-                                        <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded font-bold">미저장</span>
+                                    <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded font-bold">미저장</span>
                                 <?php endif; ?>
                             </div>
                             <div class="space-y-3 text-sm">

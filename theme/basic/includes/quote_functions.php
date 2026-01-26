@@ -468,39 +468,62 @@ function find_or_create_customer($name, $hp, $email, $addr, $company = '')
 {
     global $g5;
 
-    // Safety check for table existence (Optional, depending on environment)
-    // if(!defined('G5_CUSTOMER_TABLE')) ... assume g5_customer exists as per user confirmation
-
     $safe_hp = normalize_hp($hp);
     $safe_email = $email;
     $safe_name = sql_real_escape_string($name);
     $safe_addr = sql_real_escape_string($addr);
     $safe_company = sql_real_escape_string($company);
     $now = G5_TIME_YMDHIS;
+    $member_id = isset($g5['member']['mb_id']) ? $g5['member']['mb_id'] : 'system';
+
+    $found_customer = null;
 
     // 1. Search by HP
-    if ($safe_hp && strlen($safe_hp) >= 9) { // Minimum length check
-        $sql = " SELECT customer_id FROM g5_customer WHERE replace(customer_hp, '-', '') = '$safe_hp' ";
-        $row = sql_fetch($sql);
-        if ($row['customer_id']) {
-            return (int) $row['customer_id'];
-        }
+    if ($safe_hp && strlen($safe_hp) >= 9) {
+        $sql = " SELECT * FROM g5_customer WHERE replace(customer_hp, '-', '') = '$safe_hp' ";
+        $found_customer = sql_fetch($sql);
     }
 
-    // 2. Search by Email
-    if ($safe_email) {
+    // 2. Search by Email (if not found by HP)
+    if (!$found_customer && $safe_email) {
         $safe_email_esc = sql_real_escape_string($safe_email);
-        $sql = " SELECT customer_id FROM g5_customer WHERE customer_email = '$safe_email_esc' ";
-        $row = sql_fetch($sql);
-        if ($row['customer_id']) {
-            return (int) $row['customer_id'];
-        }
+        $sql = " SELECT * FROM g5_customer WHERE customer_email = '$safe_email_esc' ";
+        $found_customer = sql_fetch($sql);
     }
 
-    // 3. Create New Customer
-    // Use transaction if possible, but MyISAM usually.
+    // 3. Update Existing Customer
+    if ($found_customer) {
+        $cust_id = $found_customer['customer_id'];
+        $db_company = $found_customer['customer_company'];
+        $db_name = $found_customer['customer_name'];
+        $memo_append = "";
 
-    // If name is empty, use 'Unknown Customer' or derivative
+        // Logic: Company Update (Logged)
+        // Update if DB is empty OR (User provided new value AND it's different)
+        // User requested: "Existing value -> customer_memo history"
+        if (!empty($safe_company) && $safe_company != $db_company) {
+            $old_val = $db_company ? $db_company : '(없음)';
+            $memo_append .= "\\n[" . date('Y-m-d') . "] 상호변경: $old_val -> $safe_company";
+
+            // Perform Update
+            sql_query(" UPDATE g5_customer SET customer_company = '$safe_company', updated_at = '$now' WHERE customer_id = '$cust_id' ");
+        }
+
+        // Logic: Name Mismatch (Logged only, DO NOT OVERWRITE NAME)
+        if (!empty($safe_name) && $safe_name != $db_name) {
+            $memo_append .= "\\n[" . date('Y-m-d') . "] 이름불일치(저장안함): $db_name (기존) vs $safe_name (입력)";
+        }
+
+        // Append Memo if needed
+        if ($memo_append) {
+            $safe_memo = sql_real_escape_string($memo_append);
+            sql_query(" UPDATE g5_customer SET customer_memo = CONCAT(customer_memo, '$safe_memo') WHERE customer_id = '$cust_id' ");
+        }
+
+        return (int) $cust_id;
+    }
+
+    // 4. Create New Customer
     if (empty($safe_name))
         $safe_name = '고객_' . date('ymd');
 
@@ -519,11 +542,8 @@ function find_or_create_customer($name, $hp, $email, $addr, $company = '')
     if ($result) {
         $cust_id = sql_insert_id();
 
-        // Init Status Log (Optional but recommended)
-        // Check if g5_customer_status exists roughly
-        /* 
-        sql_query(" INSERT INTO g5_customer_status SET customer_id = '$cust_id', status_step = '문의접수', updated_at = '$now' ", false); 
-        */
+        // Init Status (Optional)
+        // sql_query(" INSERT INTO g5_customer_status SET customer_id = '$cust_id', status_step = '실측중', updated_at = '$now' ", false);
 
         return (int) $cust_id;
     }

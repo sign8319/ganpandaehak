@@ -146,7 +146,7 @@ if ($w == 'save') {
     $qa_client_email = clean_sql($_POST['qa_client_email'] ?? '');
     $qa_client_addr = clean_sql($_POST['qa_client_addr'] ?? '');
     $qa_client_addr2 = clean_sql($_POST['qa_client_addr2'] ?? '');
-    $qa_status = clean_sql($_POST['qa_status'] ?? '작성중');
+    $qa_status = clean_sql($_POST['qa_status'] ?? '실측중');
 
     // Measure items
     $qm_type = $_POST['qm_type'] ?? [];
@@ -178,7 +178,8 @@ if ($w == 'save') {
                     qa_status = '$qa_status',
                     qa_memo = '$qa_memo',
                     qa_memo_user = '$qa_memo_user',
-                    qa_tax_company_name = '$qa_tax_company_name' ";
+                    qa_tax_company_name = '$qa_tax_company_name',
+                    qa_customer_id = '$customer_id' ";
 
     if (!$qa_id) {
         // Create new quote
@@ -200,12 +201,76 @@ if ($w == 'save') {
             alert('저장 중 오류가 발생했습니다. 관리자에게 문의하세요.');
         }
         $qa_id = sql_insert_id();
+
+        // [NEW] Sync Customer (Step 1 Save)
+        // Find or Create Customer to ensure we have an ID
+        $customer_id = find_or_create_customer(
+            $qa_client_name, 
+            $qa_client_hp, 
+            $qa_client_email, 
+            $qa_client_addr . ' ' . $qa_client_addr2, 
+            $qa_tax_company_name
+        );
+        
+        // Update Quote with new Customer ID
+        sql_query(" UPDATE g5_quote SET qa_customer_id = '$customer_id' WHERE qa_id = '$qa_id' ");
+
+        // [NEW] Status Log (Initial)
+        if ($customer_id) {
+             sql_query(" INSERT INTO g5_customer_status_log SET
+                        customer_id = '$customer_id',
+                        before_step = '작성중',
+                        after_step = '$qa_status',
+                        changed_by = '{$member['mb_id']}',
+                        changed_at = '" . G5_TIME_YMDHIS . "' ");
+             
+             // Update Current Status Table
+             sql_query(" INSERT INTO g5_customer_status SET
+                        customer_id = '$customer_id',
+                        status_step = '$qa_status',
+                        updated_at = '" . G5_TIME_YMDHIS . "',
+                        updated_by = '{$member['mb_id']}' 
+                        ON DUPLICATE KEY UPDATE status_step = '$qa_status', updated_at = '" . G5_TIME_YMDHIS . "', updated_by = '{$member['mb_id']}' ");
+        }
     } else {
         // Update existing quote
+        // [NEW] Check Status Change
+        $old_quote = sql_fetch(" SELECT qa_status, qa_customer_id FROM g5_quote WHERE qa_id = '$qa_id' ");
+        $old_status = $old_quote['qa_status'];
+        
+        // [NEW] Sync Customer
+        $customer_id = find_or_create_customer(
+            $qa_client_name, 
+            $qa_client_hp, 
+            $qa_client_email, 
+            $qa_client_addr . ' ' . $qa_client_addr2, 
+            $qa_tax_company_name
+        );
+
+        // Update SQL with valid customer_id
+        // Re-build sql_common with customer_id
+        $sql_common .= ", qa_customer_id = '$customer_id' ";
+
         $sql = " UPDATE g5_quote SET $sql_common WHERE qa_id = '$qa_id' ";
         $result = sql_query($sql);
         if (!$result) {
             alert('저장 중 오류가 발생했습니다. 관리자에게 문의하세요.');
+        }
+
+        // [NEW] Status Log (Change)
+        if ($customer_id && $old_status != $qa_status) {
+             sql_query(" INSERT INTO g5_customer_status_log SET
+                        customer_id = '$customer_id',
+                        before_step = '$old_status',
+                        after_step = '$qa_status',
+                        changed_by = '{$member['mb_id']}',
+                        changed_at = '" . G5_TIME_YMDHIS . "' ");
+
+             sql_query(" UPDATE g5_customer_status SET
+                        status_step = '$qa_status',
+                        updated_at = '" . G5_TIME_YMDHIS . "',
+                        updated_by = '{$member['mb_id']}' 
+                        WHERE customer_id = '$customer_id' ");
         }
 
         // Delete old measure data

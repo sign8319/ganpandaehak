@@ -123,6 +123,23 @@ if ($w == 'ajax_save_header') {
                     $upd[$q_col] = $cust[$c_col];
             }
         }
+
+        // [NEW] Sync Company Name to Customer (Reverse Sync)
+        $new_company = $upd['qa_tax_company_name'] ?? $quote['qa_tax_company_name'];
+        if ($cust && $new_company && $cust['customer_company'] != $new_company) {
+            // Log history
+            $old_val = $cust['customer_company'] ? $cust['customer_company'] : '(없음)';
+            $memo_append = "\\n[" . date('Y-m-d') . "] 상호변경(견적수정): $old_val -> $new_company";
+            $safe_memo = sql_real_escape_string($memo_append);
+            $safe_comp = sql_real_escape_string($new_company);
+
+            // Update Customer
+            sql_query(" UPDATE g5_customer SET 
+                         customer_company = '$safe_comp', 
+                         customer_memo = CONCAT(customer_memo, '$safe_memo'),
+                         updated_at = '" . G5_TIME_YMDHIS . "' 
+                         WHERE customer_id = '$cust_id' ");
+        }
     }
 
     $sql_set = "";
@@ -157,7 +174,72 @@ if ($w == 'ajax_search') {
     exit;
 }
 
-// 5. AJAX List Loading (Month/Year Filter)
+// 5. AJAX Delete Quote (작성 취소/삭제)
+if ($w == 'ajax_delete_quote') {
+    // Clear any previous output buffer to ensure clean JSON
+    if (ob_get_length())
+        ob_clean();
+
+    $qa_id = isset($_POST['qa_id']) ? (int) $_POST['qa_id'] : 0;
+    $delete_customer = isset($_POST['delete_customer']) ? (int) $_POST['delete_customer'] : 0;
+
+    // [Skeleton Data Support]
+    // If we have a qa_id, even if the quote record is missing, we must clean up g5_work and measures.
+    if (!$qa_id) {
+        echo json_encode(['success' => false, 'message' => 'Invalid ID']);
+        exit;
+    }
+
+    // Check permissions (Admin only)
+    if (!$is_admin) {
+        echo json_encode(['success' => false, 'message' => 'Permission denied']);
+        exit;
+    }
+
+    // [NEW] Get Customer ID before deletion if requested
+    $customer_id_to_delete = 0;
+    if ($delete_customer) {
+        $q_info = sql_fetch(" SELECT qa_customer_id FROM g5_quote WHERE qa_id = '$qa_id' ");
+        if ($q_info && $q_info['qa_customer_id']) {
+            $customer_id_to_delete = $q_info['qa_customer_id'];
+        }
+    }
+
+    // 1. Delete Quote Record
+    sql_query(" DELETE FROM g5_quote WHERE qa_id = '$qa_id' ");
+
+    // 2. Delete Items & Measures
+    sql_query(" DELETE FROM g5_quote_item WHERE qa_id = '$qa_id' ");
+    sql_query(" DELETE FROM g5_quote_measure WHERE qa_id = '$qa_id' ");
+
+    // 3. Delete Work (Skeleton / Linked Data)
+    // This cleans up the "Only Work Exists" case if proper foreign key or qa_id link exists
+    sql_query(" DELETE FROM g5_work WHERE qa_id = '$qa_id' ");
+
+    // [NEW] Delete Customer Data if requested
+    if ($customer_id_to_delete) {
+        sql_query(" DELETE FROM g5_customer WHERE customer_id = '$customer_id_to_delete' ");
+        sql_query(" DELETE FROM g5_customer_status WHERE customer_id = '$customer_id_to_delete' ");
+        sql_query(" DELETE FROM g5_customer_status_log WHERE customer_id = '$customer_id_to_delete' ");
+        sql_query(" DELETE FROM g5_customer_share_link WHERE customer_id = '$customer_id_to_delete' ");
+
+        // Also cleanup other works associated with this customer? 
+        // User didn't specify, but for safety usually keeping other works is safer unless they asked "Delete customer".
+        // "연관된 고객 정보도 함께 삭제" -> implies the customer entity.
+        // We will leave other works linked to this customer ID (now orphaned) or set them to 0?
+        // Let's set other works' customer_id to 0 to be safe.
+        sql_query(" UPDATE g5_work SET customer_id = 0 WHERE customer_id = '$customer_id_to_delete' AND qa_id != '$qa_id' ");
+        sql_query(" UPDATE g5_quote SET qa_customer_id = 0 WHERE qa_customer_id = '$customer_id_to_delete' AND qa_id != '$qa_id' ");
+    }
+
+    // Log if needed (Optional)
+    // sql_query(" INSERT INTO g5_quote_log ... ");
+
+    echo json_encode(['success' => true]);
+    exit;
+}
+
+// 6. AJAX List Loading (Month/Year Filter)
 if ($w == 'ajax_list') {
     header('Content-Type: application/json; charset=utf-8');
 
@@ -219,7 +301,7 @@ if ($w == 'ajax_list') {
     // Fetch Data
     $sql = " SELECT w.*, 
                     q.qa_id, q.qa_status, q.qa_tax_company_name, q.qa_client_hp, q.qa_client_addr, q.qa_client_addr2, q.qa_price_total,
-                    c.customer_company, c.customer_hp, c.customer_addr
+                    c.customer_company, c.customer_name, c.customer_hp, c.customer_addr
              FROM g5_work w 
              LEFT JOIN g5_quote q ON w.qa_id = q.qa_id 
              LEFT JOIN g5_customer c ON w.customer_id = c.customer_id
@@ -234,7 +316,12 @@ if ($w == 'ajax_list') {
         $list_count++;
         // Data Normalization (Prefer Quote data, fallback to Customer data, then work_subject)
         $disp_status = $row['work_status'];
-        $disp_company = $row['qa_tax_company_name'] ? $row['qa_tax_company_name'] : ($row['customer_company'] ? $row['customer_company'] : $row['work_subject']);
+        // [MOD] Fallback Display Logic: customer_company > customer_name > '상호 미지정'
+        $disp_company = $row['customer_company'];
+        if (!$disp_company || $disp_company == '')
+            $disp_company = $row['customer_name'];
+        if (!$disp_company || $disp_company == '')
+            $disp_company = '<span class="text-gray-400 font-normal">상호 미지정</span>';
         $disp_hp = $row['qa_client_hp'] ? $row['qa_client_hp'] : $row['customer_hp'];
         $disp_addr = $row['qa_client_addr'] ? $row['qa_client_addr'] : $row['customer_addr'];
 

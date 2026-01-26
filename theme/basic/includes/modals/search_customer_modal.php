@@ -84,19 +84,37 @@ if (!defined('_GNUBOARD_'))
                     const manager = c.customer_manager || '-';
                     const hp = c.customer_hp || '-';
 
+                    // [MOD] Display Priority: Company > Name
+                    const company = c.customer_company || '';
+                    // If company exists, use it as title. If not, use name as title.
+                    const title = company ? company : name;
+
+                    // Subtitle: If company exists, show "Name | Contact". If not, just "Contact" (since name is title)
+                    let subtitle = '';
+                    if (company) {
+                        subtitle = `${name} | ${hp}`;
+                    } else {
+                        subtitle = `${hp}`;
+                    }
+
                     // Encode data to pass to function
                     const dataStr = encodeURIComponent(JSON.stringify(c));
 
                     html += `
-                    <li class="flex justify-between gap-x-6 py-3 cursor-pointer hover:bg-gray-50 px-2 rounded" onclick="selectCustomer('${dataStr}')">
+                    <li class="flex justify-between gap-x-6 py-3 cursor-pointer hover:bg-gray-50 px-2 rounded group" onclick="selectCustomer('${dataStr}')">
                         <div class="flex min-w-0 gap-x-4">
                             <div class="min-w-0 flex-auto text-left">
-                                <p class="text-sm font-semibold leading-6 text-gray-900">${name}</p>
-                                <p class="mt-1 truncate text-xs leading-5 text-gray-500">${manager} | ${hp}</p>
+                                <p class="text-sm font-bold leading-6 text-gray-900">${title}</p>
+                                <p class="mt-1 truncate text-xs leading-5 text-gray-500">${subtitle}</p>
                             </div>
                         </div>
-                        <div class="hidden shrink-0 sm:flex sm:flex-col sm:items-end">
-                            <button type="button" class="text-xs font-semibold text-orange-600 hover:text-orange-500">선택</button>
+                        <div class="hidden shrink-0 sm:flex sm:flex-col sm:items-end justify-center gap-2">
+                             <button type="button" class="text-xs font-semibold text-orange-600 hover:text-orange-500">선택</button>
+                             <!-- Delete Button -->
+                             <button type="button" onclick="deleteCustomerFromSearch(event, ${c.customer_id}, '${name}')"
+                                class="text-gray-300 hover:text-red-500 transition-colors p-1" title="고객 삭제">
+                                <i class="fas fa-trash-alt"></i>
+                             </button>
                         </div>
                     </li>`;
                 });
@@ -225,5 +243,37 @@ if (!defined('_GNUBOARD_'))
                 select.dispatchEvent(new Event('change'));
             }
         }
+    }
+
+    // [NEW] Delete Customer Logic
+    function deleteCustomerFromSearch(e, id, name) {
+        e.stopPropagation(); // Prevent selection
+
+        if (!confirm(`'${name}' 고객 정보를 정말 삭제하시겠습니까?\n삭제된 정보는 복구할 수 없습니다.`)) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('w', 'ajax_delete_customer');
+        formData.append('customer_id', id);
+
+        fetch('./admin_customer.php', {
+            method: 'POST',
+            body: formData
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert('삭제되었습니다.');
+                    // Refresh Search
+                    searchCustomer();
+                } else {
+                    alert('삭제 실패: ' + (data.message || '오류가 발생했습니다.'));
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('오류가 발생했습니다.');
+            });
     }
 </script>

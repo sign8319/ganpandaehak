@@ -143,6 +143,45 @@ try {
                 exit;
             }
 
+
+            // update_product / add_product 공통 옵션 저장 로직
+
+            // 기존 연결 삭제 (update의 경우)
+            if ($action === 'update_product') {
+                sql_query("DELETE FROM g5_quote_product_options WHERE product_id = $id");
+            } else {
+                // add_product의 경우 방금 생성된 ID 사용
+                $id = sql_insert_id();
+            }
+
+            // 옵션 데이터 파싱 (G5 addslashes 대응)
+            $raw = isset($_POST['linked_details'])
+                ? $_POST['linked_details']
+                : (isset($_POST['linked_options']) ? $_POST['linked_options'] : '[]');
+
+            if (is_array($raw)) {
+                $options = $raw;
+            } else {
+                $options = json_decode(stripslashes($raw), true) ?: [];
+            }
+
+            // 옵션 저장
+            if (!empty($options)) {
+                foreach ($options as $idx => $opt) {
+                    $opt_id = is_array($opt) ? (int) $opt['option_id'] : (int) $opt;
+                    $is_active = (is_array($opt) && isset($opt['is_active'])) ? (int) $opt['is_active'] : 1;
+                    $sort = (is_array($opt) && isset($opt['sort_order'])) ? (int) $opt['sort_order'] : (($idx + 1) * 10);
+
+                    if ($opt_id > 0) {
+                        sql_query("
+                            INSERT INTO g5_quote_product_options 
+                            (product_id, option_id, is_active, sort_order) 
+                            VALUES ($id, $opt_id, $is_active, $sort)
+                        ");
+                    }
+                }
+            }
+
             echo json_encode(['success' => true, 'message' => '제품이 추가되었습니다']);
             break;
         case 'update_product':
@@ -207,29 +246,41 @@ try {
                 exit;
             }
 
-            // 옵션 연결 정보 업데이트 (g5_quote_product_options)
-            // 기존 연결 모두 삭제 후 재등록
-            sql_query("DELETE FROM g5_quote_product_options WHERE product_id = $id");
+            // update_product / add_product 공통 옵션 저장 로직
 
-            // 1. 상세 설정(정렬, 활성)이 포함된 JSON 데이터가 있는 경우
-            if (isset($_POST['linked_details']) && $_POST['linked_details']) {
-                $details = json_decode($_POST['linked_details'], true);
-                if (is_array($details)) {
-                    foreach ($details as $idx => $opt) {
-                        $opt_id = (int) $opt['option_id'];
-                        $is_active = isset($opt['is_active']) ? (int) $opt['is_active'] : 1;
-                        $sort = isset($opt['sort_order']) ? (int) $opt['sort_order'] : ($idx * 10);
-
-                        sql_query("INSERT INTO g5_quote_product_options (product_id, option_id, is_active, sort_order) VALUES ($id, $opt_id, $is_active, $sort)");
-                    }
-                }
+            // 기존 연결 삭제 (update의 경우)
+            if ($action === 'update_product') {
+                sql_query("DELETE FROM g5_quote_product_options WHERE product_id = $id");
+            } else {
+                // add_product의 경우 방금 생성된 ID 사용
+                $id = sql_insert_id();
             }
-            // 2. 단순 체크박스 배열만 있는 경우 (기존 호환)
-            else if (isset($_POST['linked_options']) && is_array($_POST['linked_options'])) {
-                foreach ($_POST['linked_options'] as $idx => $opt_id) {
-                    $opt_id = (int) $opt_id;
-                    $sort = $idx * 10;
-                    sql_query("INSERT INTO g5_quote_product_options (product_id, option_id, is_active, sort_order) VALUES ($id, $opt_id, 1, $sort)");
+
+            // 옵션 데이터 파싱 (G5 addslashes 대응)
+            $raw = isset($_POST['linked_details'])
+                ? $_POST['linked_details']
+                : (isset($_POST['linked_options']) ? $_POST['linked_options'] : '[]');
+
+            if (is_array($raw)) {
+                $options = $raw;
+            } else {
+                $options = json_decode(stripslashes($raw), true) ?: [];
+            }
+
+            // 옵션 저장
+            if (!empty($options)) {
+                foreach ($options as $idx => $opt) {
+                    $opt_id = is_array($opt) ? (int) $opt['option_id'] : (int) $opt;
+                    $is_active = (is_array($opt) && isset($opt['is_active'])) ? (int) $opt['is_active'] : 1;
+                    $sort = (is_array($opt) && isset($opt['sort_order'])) ? (int) $opt['sort_order'] : (($idx + 1) * 10);
+
+                    if ($opt_id > 0) {
+                        sql_query("
+                            INSERT INTO g5_quote_product_options 
+                            (product_id, option_id, is_active, sort_order) 
+                            VALUES ($id, $opt_id, $is_active, $sort)
+                        ");
+                    }
                 }
             }
 

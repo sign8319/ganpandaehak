@@ -142,7 +142,7 @@ if (!defined('_GNUBOARD_'))
             // Company Code/Tax Name
             const taxCompanyInput = document.querySelector('input[name="qa_tax_company_name"]');
             if (taxCompanyInput) {
-                taxCompanyInput.value = customer.customer_name; // Or tax_company_name if exists in basic info
+                taxCompanyInput.value = customer.customer_company || customer.tax_company_name || customer.customer_name;
                 taxCompanyInput.dispatchEvent(new Event('input'));
             }
 
@@ -204,7 +204,7 @@ if (!defined('_GNUBOARD_'))
 
         // Tax Checkbox
         const taxCheck = document.getElementById('qa_tax_yn_check');
-        if (taxCheck && (c.tax_biz_num || c.tax_company_name)) {
+        if (taxCheck && (c.tax_biz_num || c.tax_company_name || c.customer_company)) {
             // If customer has tax info, assume Y? Or check if tax_biz_num is not empty.
             if (!taxCheck.checked) {
                 taxCheck.click(); // Trigger toggle logic
@@ -214,18 +214,18 @@ if (!defined('_GNUBOARD_'))
         const map = {
             'qa_construct_date': null, // Not from customer
             'qa_deposit_status': c.qa_deposit_status || '입금대기',
-            'qa_payment_method': c.payment_method,
-            'qa_tax_type': c.tax_type,
+            'qa_payment_method': c.payment_method || '현금',
+            'qa_tax_type': c.tax_type || '01',
             'qa_tax_claim_type': '01', // Default to Receipts
             'qa_tax_trade_name': null, // Default
             'qa_tax_ceo_name': c.tax_ceo_name,
-            'qa_tax_company_name': c.tax_company_name || c.customer_name,
+            'qa_tax_company_name': c.customer_company || c.tax_company_name || c.customer_name,
             'qa_tax_email': c.tax_email || c.customer_email,
             'qa_tax_biz_num': c.tax_biz_num,
-            'qa_tax_addr': c.tax_addr,
-            'qa_tax_item_name': c.tax_item_name,
-            'qa_tax_condition': c.tax_condition, // New
-            'qa_tax_sector': c.tax_sector // New
+            'qa_tax_addr': c.tax_addr || c.customer_addr,
+            'qa_tax_item_name': c.tax_item_name || '간판작업 1식',
+            'qa_tax_condition': c.tax_condition,
+            'qa_tax_sector': c.tax_sector
         };
 
         for (const [key, val] of Object.entries(map)) {

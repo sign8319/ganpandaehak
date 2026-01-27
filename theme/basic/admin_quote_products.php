@@ -228,12 +228,12 @@ if (!$is_admin) {
             <!-- 옵션 연결 섹션 -->
             <div class="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
                 <input type="hidden" name="linked_details" id="product_linked_details">
-                
+
                 <h4 class="font-bold text-gray-800 mb-2 flex items-center">
                     <span class="mr-2">🔗 연결된 옵션</span>
                     <span class="text-xs font-normal text-gray-500">순서를 변경하거나 상태를 설정하세요.</span>
                 </h4>
-                
+
                 <!-- 연결된 옵션 리스트 (순서/상태 설정) -->
                 <div class="bg-white rounded border border-gray-200 mb-4 overflow-hidden">
                     <table class="w-full text-sm">
@@ -247,7 +247,9 @@ if (!$is_admin) {
                         </thead>
                         <tbody id="linked-options-tbody">
                             <!-- JS 로드 -->
-                            <tr><td colspan="4" class="p-4 text-center text-gray-400">연결된 옵션이 없습니다. 아래 목록에서 선택하세요.</td></tr>
+                            <tr>
+                                <td colspan="4" class="p-4 text-center text-gray-400">연결된 옵션이 없습니다. 아래 목록에서 선택하세요.</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -361,11 +363,11 @@ if (!$is_admin) {
             loadOptionsForProduct(null);
         }
     }
-    
+
     function closeProductModal() { document.getElementById('productModal').classList.add('hidden'); }
 
     function toggleCalcFields() { const t = document.getElementById('product_calc_type').value; const m = document.getElementById('minAreaField'); const b = document.getElementById('baseSizeField'); m.classList.add('hidden'); b.classList.add('hidden'); if (t === 'area') m.classList.remove('hidden'); else if (t === 'text') b.classList.remove('hidden'); }
-    
+
     function togglePricingMode() {
         const mode = document.querySelector('input[name="pricing_mode"]:checked');
         const widthSection = document.getElementById('widthPricingSection');
@@ -395,17 +397,17 @@ if (!$is_admin) {
         currentAllOptions = [];
         currentLinkedOptions = [];
         const container = document.getElementById('all-options-container'); // 올바른 ID 사용
-        if(container) container.innerHTML = '<div class="text-xs text-gray-500">불러오는 중...</div>';
-        
+        if (container) container.innerHTML = '<div class="text-xs text-gray-500">불러오는 중...</div>';
+
         // 1. 전체 마스터 옵션 가져오기
         fetch('admin_quote_api.php?action=get_options').then(r => r.json()).then(allOptions => {
             currentAllOptions = allOptions;
-            
+
             // 2. 제품에 연결된 옵션 가져오기
             if (productId) {
                 fetch(`admin_quote_api.php?action=get_options&product_id=${productId}`).then(r => r.json()).then(data => {
                     const details = data.linked_details || [];
-                    
+
                     // linked_details에는 option 정보가 없으므로 allOptions에서 찾아 매핑
                     currentLinkedOptions = details.map(d => {
                         const master = allOptions.find(o => o.id == d.option_id);
@@ -417,7 +419,7 @@ if (!$is_admin) {
                             group_name: master.group_name || '기본'
                         };
                     }).filter(x => x !== null);
-                    
+
                     renderUI();
                 });
             } else {
@@ -433,9 +435,9 @@ if (!$is_admin) {
 
     function renderLinkedTable() {
         const tbody = document.getElementById('linked-options-tbody');
-        if (!tbody) return; 
+        if (!tbody) return;
         tbody.innerHTML = '';
-        
+
         if (currentLinkedOptions.length === 0) {
             tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-400">연결된 옵션이 없습니다. 아래 목록에서 선택하세요.</td></tr>';
             return;
@@ -497,11 +499,11 @@ if (!$is_admin) {
             groups[gName].forEach(opt => {
                 // 이미 연결되어 있는지 확인
                 const isLinked = currentLinkedOptions.some(lo => lo.id == opt.id);
-                
+
                 const itemDiv = document.createElement('div');
-                itemDiv.className = `p-2 rounded border transition-colors ${isLinked ? 'bg-blue-50 border-blue-200 cursor-default' : 'bg-white border-gray-200 hover:border-blue-300 cursor-pointer'}`;
-                itemDiv.onclick = function() { if (!isLinked) addOptionToLink(opt.id); };
-                
+                itemDiv.className = `p-2 rounded border transition-colors ${isLinked ? 'bg-blue-50 border-blue-200 cursor-pointer' : 'bg-white border-gray-200 hover:border-blue-300 cursor-pointer'}`;
+                itemDiv.onclick = function () { toggleOptionLink(opt.id); };
+
                 itemDiv.innerHTML = `
                     <div class="flex items-center justify-between">
                         <span class="${isLinked ? 'text-blue-700 font-medium' : 'text-gray-700'}">${opt.name}</span>
@@ -516,13 +518,19 @@ if (!$is_admin) {
         });
     }
 
-    function addOptionToLink(optId) {
-        const opt = currentAllOptions.find(o => o.id == optId);
-        if (opt && !currentLinkedOptions.some(lo => lo.id == optId)) {
-            // 새 옵션 추가 (기본 활성)
-            currentLinkedOptions.push({ ...opt, is_active: 1, group_name: opt.group_name || '기본' });
-            renderUI();
+    function toggleOptionLink(optId) {
+        const index = currentLinkedOptions.findIndex(lo => lo.id == optId);
+        if (index > -1) {
+            // 이미 연결되어 있으면 제거
+            currentLinkedOptions.splice(index, 1);
+        } else {
+            // 없으면 추가
+            const opt = currentAllOptions.find(o => o.id == optId);
+            if (opt) {
+                currentLinkedOptions.push({ ...opt, is_active: 1, group_name: opt.group_name || '기본' });
+            }
         }
+        renderUI();
     }
 
     function removeOption(index) {
@@ -543,9 +551,9 @@ if (!$is_admin) {
         renderUI(); // 스위치 상태 변경을 위해 재렌더링
     }
 
-    document.getElementById('productForm').addEventListener('submit', function (e) { 
-        e.preventDefault(); 
-        
+    document.getElementById('productForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+
         // 현재 연결된 옵션 상태를 JSON으로 변환하여 hidden input에 저장
         // currentLinkedOptions 배열을 활용
         const details = currentLinkedOptions.map((opt, idx) => ({
@@ -555,10 +563,10 @@ if (!$is_admin) {
         }));
         document.getElementById('product_linked_details').value = JSON.stringify(details);
 
-        const fd = new FormData(this); 
-        const id = document.getElementById('product_id').value; 
-        fd.append('action', id ? 'update_product' : 'add_product'); 
-        fetch('admin_quote_api.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { if (d.success) { alert(d.message); closeProductModal(); loadProducts(); } else alert('오류: ' + d.message); }); 
+        const fd = new FormData(this);
+        const id = document.getElementById('product_id').value;
+        fd.append('action', id ? 'update_product' : 'add_product');
+        fetch('admin_quote_api.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { if (d.success) { alert(d.message); closeProductModal(); loadProducts(); } else alert('오류: ' + d.message); });
     });
 
     function loadSubcategoriesForProduct(selectedId = null) {

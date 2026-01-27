@@ -228,7 +228,11 @@ if (in_array($w, ['ajax_create_quote', 'ajax_save_header', 'ajax_search', 'gener
 if ($w == 'register_complete' && $qa_id) {
     check_quote_token();
 
-    // Fetch Quote Data
+    // Fetch existing Quote Data
+    $quote = sql_fetch(" select * from g5_quote where qa_id = '$qa_id' ");
+    if (!$quote)
+        alert('견적 정보를 찾을 수 없습니다.');
+
     // [NEW] Save Tax Info
     $qa_data = [
         'qa_construct_date' => $_POST['qa_construct_date'],
@@ -250,7 +254,7 @@ if ($w == 'register_complete' && $qa_id) {
         'qa_tax_condition' => trim($_POST['qa_tax_condition'] ?? ''),
         'qa_tax_sector' => trim($_POST['qa_tax_sector'] ?? ''),
         // Also save customer_id if passed
-        'qa_customer_id' => isset($_POST['customer_id']) ? (int) $_POST['customer_id'] : $quote['qa_customer_id']
+        'qa_customer_id' => isset($_POST['customer_id']) ? (int) $_POST['customer_id'] : (int) $quote['qa_customer_id']
     ];
 
     $sql_set = "";
@@ -262,7 +266,7 @@ if ($w == 'register_complete' && $qa_id) {
 
     // [NEW] Save as Customer Default Logic
     if (isset($_POST['save_customer_default']) && $_POST['save_customer_default'] == '1') {
-        $cust_id = (int) $quote['qa_customer_id'];
+        $cust_id = (int) $qa_data['qa_customer_id'];
         // If qa_customer_id is 0, maybe try to match by name or creating new?
         // User requested: "customer_id를 hidden으로 저장하고... 유지"
         // If we have cust_id, update it.
@@ -287,6 +291,9 @@ if ($w == 'register_complete' && $qa_id) {
             sql_query(" UPDATE g5_customer SET " . trim($c_sql, ',') . " WHERE customer_id = '$cust_id' ");
         }
     }
+
+    // Refresh quote data after first update
+    $quote = sql_fetch(" select * from g5_quote where qa_id = '$qa_id' ");
     if (!$quote)
         alert('견적 정보를 찾을 수 없습니다.');
 
@@ -395,6 +402,9 @@ if ($w == 'register_complete' && $qa_id) {
 // [NEW] Step 3 중간 저장 (Only Update Data)
 if ($w == 'step3_update' && $qa_id) {
     check_quote_token();
+
+    // Fetch existing quote to get customer_id
+    $quote = sql_fetch(" select * from g5_quote where qa_id = '$qa_id' ");
 
     // Step 3 추가 항목 저장 로직 (register_complete와 동일 기능, 상태 변경 제외)
     $qa_construct_date = isset($_POST['qa_construct_date']) ? $_POST['qa_construct_date'] : '';
@@ -583,34 +593,6 @@ if ($w == 'ajax_delete_customer') {
     exit;
 }
 
-// Load customer data for view/edit
-$customer = null;
-$status = null;
-$share_link = null;
-$status_logs = [];
-
-if ($customer_id) {
-    // Load customer data with JOIN to g5_work if needed
-    $customer = sql_fetch("
-        SELECT c.*, w.work_id, w.work_subject, w.work_status, w.created_at as work_created_at
-        FROM g5_customer c
-        LEFT JOIN g5_work w ON c.customer_id = w.customer_id
-        WHERE c.customer_id = '$customer_id'
-        LIMIT 1
-    ");
-
-    if ($customer) {
-        $status = sql_fetch(" SELECT * FROM g5_customer_status WHERE customer_id = '$customer_id' ");
-        $share_link = sql_fetch(" SELECT * FROM g5_customer_share_link WHERE customer_id = '$customer_id' ");
-
-        // Load status logs
-        $result = sql_query(" SELECT * FROM g5_customer_status_log WHERE customer_id = '$customer_id' ORDER BY changed_at DESC LIMIT 10 ");
-        while ($row = sql_fetch_array($result)) {
-            $status_logs[] = $row;
-        }
-    }
-}
-
 // Prepare Data for Summary View (Step 3)
 $is_summary_mode = !empty($qa_id);
 $quote_data = [];
@@ -639,6 +621,39 @@ if ($is_summary_mode) {
     $calculated_supply = 0;
     foreach ($item_data as $item) {
         $calculated_supply += $item['qi_amount'];
+    }
+}
+
+// Load customer data for view/edit
+$customer = null;
+$status = null;
+$share_link = null;
+$status_logs = [];
+
+// [FIX] Resolve customer_id from quote_data if missing
+if (!$customer_id && !empty($quote_data['qa_customer_id'])) {
+    $customer_id = (int) $quote_data['qa_customer_id'];
+}
+
+if ($customer_id) {
+    // Load customer data with JOIN to g5_work if needed
+    $customer = sql_fetch("
+        SELECT c.*, w.work_id, w.work_subject, w.work_status, w.created_at as work_created_at
+        FROM g5_customer c
+        LEFT JOIN g5_work w ON c.customer_id = w.customer_id
+        WHERE c.customer_id = '$customer_id'
+        LIMIT 1
+    ");
+
+    if ($customer) {
+        $status = sql_fetch(" SELECT * FROM g5_customer_status WHERE customer_id = '$customer_id' ");
+        $share_link = sql_fetch(" SELECT * FROM g5_customer_share_link WHERE customer_id = '$customer_id' ");
+
+        // Load status logs
+        $result = sql_query(" SELECT * FROM g5_customer_status_log WHERE customer_id = '$customer_id' ORDER BY changed_at DESC LIMIT 10 ");
+        while ($row = sql_fetch_array($result)) {
+            $status_logs[] = $row;
+        }
     }
 }
 
@@ -772,9 +787,12 @@ include_once(G5_THEME_PATH . '/head.php');
                                             <label class="block text-sm font-semibold text-gray-700 mb-1">결제방식</label>
                                             <select name="qa_payment_method"
                                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white text-sm">
-                                                <option value="현금" <?php echo ($quote_data['qa_payment_method'] ?? '') == '현금' ? 'selected' : ''; ?>>현금</option>
-                                                <option value="계좌이체" <?php echo ($quote_data['qa_payment_method'] ?? '') == '계좌이체' ? 'selected' : ''; ?>>계좌이체</option>
-                                                <option value="카드" <?php echo ($quote_data['qa_payment_method'] ?? '') == '카드' ? 'selected' : ''; ?>>카드</option>
+                                                <?php
+                                                $curr_pay_method = $quote_data['qa_payment_method'] ?? $customer['payment_method'] ?? '현금';
+                                                ?>
+                                                <option value="현금" <?php echo $curr_pay_method == '현금' ? 'selected' : ''; ?>>현금</option>
+                                                <option value="계좌이체" <?php echo $curr_pay_method == '계좌이체' ? 'selected' : ''; ?>>계좌이체</option>
+                                                <option value="카드" <?php echo $curr_pay_method == '카드' ? 'selected' : ''; ?>>카드</option>
                                             </select>
                                         </div>
 
@@ -815,13 +833,13 @@ include_once(G5_THEME_PATH . '/head.php');
                                                 <label class="block text-xs text-gray-500 mb-1">업태 (Business
                                                     Condition)</label>
                                                 <input type="text" name="qa_tax_condition"
-                                                    value="<?php echo htmlspecialchars($quote_data['qa_tax_condition'] ?? ''); ?>"
+                                                    value="<?php echo htmlspecialchars($quote_data['qa_tax_condition'] ?: ($customer['tax_condition'] ?? '')); ?>"
                                                     class="w-full px-3 py-2 border border-gray-300 rounded text-sm text-gray-600">
                                             </div>
                                             <div class="md:col-span-2">
                                                 <label class="block text-xs text-gray-500 mb-1">종목 (Sector)</label>
                                                 <input type="text" name="qa_tax_sector"
-                                                    value="<?php echo htmlspecialchars($quote_data['qa_tax_sector'] ?? ''); ?>"
+                                                    value="<?php echo htmlspecialchars($quote_data['qa_tax_sector'] ?: ($customer['tax_sector'] ?? '')); ?>"
                                                     class="w-full px-3 py-2 border border-gray-300 rounded text-sm text-gray-600">
                                             </div>
                                             <div class="md:col-span-2">
@@ -843,13 +861,13 @@ include_once(G5_THEME_PATH . '/head.php');
                                             <div class="md:col-span-3">
                                                 <label class="block text-xs text-gray-500 mb-1">공급자상호 (견적명)</label>
                                                 <input type="text" name="qa_tax_trade_name"
-                                                    value="<?php echo htmlspecialchars($quote_data['qa_tax_trade_name'] ?? $quote_data['qa_subject'] ?? ''); ?>"
+                                                    value="<?php echo htmlspecialchars($quote_data['qa_tax_trade_name'] ?: ($quote_data['qa_subject'] ?: ($customer['customer_company'] ?: ''))); ?>"
                                                     class="w-full px-3 py-2 border border-gray-300 rounded text-sm text-gray-600">
                                             </div>
                                             <div class="md:col-span-3">
                                                 <label class="block text-xs text-gray-500 mb-1">대표자성명</label>
                                                 <input type="text" name="qa_tax_ceo_name"
-                                                    value="<?php echo htmlspecialchars($quote_data['qa_tax_ceo_name'] ?? $quote_data['qa_client_name'] ?? ''); ?>"
+                                                    value="<?php echo htmlspecialchars($quote_data['qa_tax_ceo_name'] ?: ($customer['tax_ceo_name'] ?: ($quote_data['qa_client_name'] ?: ''))); ?>"
                                                     class="w-full px-3 py-2 border border-gray-300 rounded text-sm text-gray-600">
                                             </div>
 
@@ -857,13 +875,13 @@ include_once(G5_THEME_PATH . '/head.php');
                                             <div class="md:col-span-3">
                                                 <label class="block text-xs text-gray-500 mb-1">상호 (필수)</label>
                                                 <input type="text" name="qa_tax_company_name" placeholder="예: 간판마켓"
-                                                    value="<?php echo htmlspecialchars($quote_data['qa_tax_company_name'] ?? $quote_data['qa_client_company'] ?? ''); ?>"
+                                                    value="<?php echo htmlspecialchars($quote_data['qa_tax_company_name'] ?: ($customer['customer_company'] ?: ($customer['tax_company_name'] ?? ''))); ?>"
                                                     class="w-full px-3 py-2 border border-blue-200 rounded text-sm bg-blue-50 font-bold text-blue-800">
                                             </div>
                                             <div class="md:col-span-3">
                                                 <label class="block text-xs text-gray-500 mb-1">고객 이메일</label>
                                                 <input type="email" name="qa_tax_email"
-                                                    value="<?php echo htmlspecialchars($quote_data['qa_tax_email'] ?? $quote_data['qa_client_email'] ?? ''); ?>"
+                                                    value="<?php echo htmlspecialchars($quote_data['qa_tax_email'] ?: ($customer['tax_email'] ?: ($customer['customer_email'] ?? ''))); ?>"
                                                     class="w-full px-3 py-2 border border-gray-300 rounded text-sm text-gray-600">
                                             </div>
 
@@ -872,13 +890,13 @@ include_once(G5_THEME_PATH . '/head.php');
                                                 <label class="block text-xs text-gray-500 mb-1">사업자번호</label>
                                                 <input type="text" name="qa_tax_biz_num" placeholder="예: 1234567890"
                                                     maxlength="12"
-                                                    value="<?php echo $quote_data['qa_tax_biz_num'] ?? ''; ?>"
+                                                    value="<?php echo $quote_data['qa_tax_biz_num'] ?: ($customer['tax_biz_num'] ?? ''); ?>"
                                                     class="w-full px-3 py-2 border border-gray-300 rounded text-sm placeholder-gray-400">
                                             </div>
                                             <div class="md:col-span-4">
                                                 <label class="block text-xs text-gray-500 mb-1">사업장주소</label>
                                                 <input type="text" name="qa_tax_addr"
-                                                    value="<?php echo htmlspecialchars($quote_data['qa_tax_addr'] ?? trim(($quote_data['qa_client_addr'] ?? '') . ' ' . ($quote_data['qa_client_addr2'] ?? ''))); ?>"
+                                                    value="<?php echo htmlspecialchars($quote_data['qa_tax_addr'] ?: ($customer['tax_addr'] ?: trim(($quote_data['qa_client_addr'] ?? '') . ' ' . ($quote_data['qa_client_addr2'] ?? '')))); ?>"
                                                     class="w-full px-3 py-2 border border-gray-300 rounded text-sm text-gray-600">
                                             </div>
 
@@ -886,7 +904,7 @@ include_once(G5_THEME_PATH . '/head.php');
                                             <div class="md:col-span-6">
                                                 <label class="block text-xs text-gray-500 mb-1">품목명 (필수)</label>
                                                 <input type="text" name="qa_tax_item_name"
-                                                    value="<?php echo htmlspecialchars($quote_data['qa_tax_item_name'] ?? '간판작업 1식'); ?>"
+                                                    value="<?php echo htmlspecialchars($quote_data['qa_tax_item_name'] ?: ($customer['tax_item_name'] ?: '간판작업 1식')); ?>"
                                                     class="w-full px-3 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700">
                                             </div>
 
@@ -1012,54 +1030,54 @@ include_once(G5_THEME_PATH . '/head.php');
                                     </div>
                                     <div class="p-0 overflow-x-auto">
                                         <?php if (count($measure_data) > 0): ?>
-                                            <table class="w-full text-sm text-left min-w-[600px]">
-                                                <thead class="bg-gray-50 text-gray-500 border-b border-gray-100">
-                                                    <tr>
-                                                        <th class="px-3 md:px-6 py-3 text-xs md:text-sm">간판 종류</th>
-                                                        <th class="px-3 md:px-6 py-3 text-xs md:text-sm">사이즈</th>
-                                                        <th class="px-3 md:px-6 py-3 text-xs md:text-sm">수량</th>
-                                                        <th class="px-3 md:px-6 py-3 text-xs md:text-sm">메모</th>
-                                                        <th class="px-3 md:px-6 py-3 text-xs md:text-sm">사진</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="divide-y divide-gray-100">
-                                                    <?php foreach ($measure_data as $m): ?>
+                                                <table class="w-full text-sm text-left min-w-[600px]">
+                                                    <thead class="bg-gray-50 text-gray-500 border-b border-gray-100">
                                                         <tr>
-                                                            <td class="px-3 md:px-6 py-4 font-medium text-xs md:text-sm">
-                                                                <?php echo $m['qm_type']; ?>
-                                                            </td>
-                                                            <td class="px-3 md:px-6 py-4 text-xs md:text-sm">
-                                                                <?php echo $m['qm_width']; ?> x
-                                                                <?php echo $m['qm_height']; ?>
-                                                            </td>
-                                                            <td class="px-3 md:px-6 py-4 text-xs md:text-sm">
-                                                                <?php echo $m['qm_qty']; ?>
-                                                            </td>
-                                                            <td class="px-3 md:px-6 py-4 text-gray-500 text-xs md:text-sm">
-                                                                <?php echo $m['qm_memo']; ?>
-                                                            </td>
-                                                            <td class="px-3 md:px-6 py-4">
-                                                                <div class="flex gap-2">
-                                                                    <?php if ($m['qm_img1']): ?>
-                                                                        <a href="<?php echo G5_DATA_URL . '/quote/' . $m['qm_img1']; ?>"
-                                                                            target="_blank"
-                                                                            class="text-blue-500 hover:text-blue-700"><i
-                                                                                class="fas fa-image"></i></a>
-                                                                    <?php endif; ?>
-                                                                    <?php if ($m['qm_img2']): ?>
-                                                                        <a href="<?php echo G5_DATA_URL . '/quote/' . $m['qm_img2']; ?>"
-                                                                            target="_blank"
-                                                                            class="text-blue-500 hover:text-blue-700"><i
-                                                                                class="fas fa-image"></i></a>
-                                                                    <?php endif; ?>
-                                                                </div>
-                                                            </td>
+                                                            <th class="px-3 md:px-6 py-3 text-xs md:text-sm">간판 종류</th>
+                                                            <th class="px-3 md:px-6 py-3 text-xs md:text-sm">사이즈</th>
+                                                            <th class="px-3 md:px-6 py-3 text-xs md:text-sm">수량</th>
+                                                            <th class="px-3 md:px-6 py-3 text-xs md:text-sm">메모</th>
+                                                            <th class="px-3 md:px-6 py-3 text-xs md:text-sm">사진</th>
                                                         </tr>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
+                                                    </thead>
+                                                    <tbody class="divide-y divide-gray-100">
+                                                        <?php foreach ($measure_data as $m): ?>
+                                                                <tr>
+                                                                    <td class="px-3 md:px-6 py-4 font-medium text-xs md:text-sm">
+                                                                        <?php echo $m['qm_type']; ?>
+                                                                    </td>
+                                                                    <td class="px-3 md:px-6 py-4 text-xs md:text-sm">
+                                                                        <?php echo $m['qm_width']; ?> x
+                                                                        <?php echo $m['qm_height']; ?>
+                                                                    </td>
+                                                                    <td class="px-3 md:px-6 py-4 text-xs md:text-sm">
+                                                                        <?php echo $m['qm_qty']; ?>
+                                                                    </td>
+                                                                    <td class="px-3 md:px-6 py-4 text-gray-500 text-xs md:text-sm">
+                                                                        <?php echo $m['qm_memo']; ?>
+                                                                    </td>
+                                                                    <td class="px-3 md:px-6 py-4">
+                                                                        <div class="flex gap-2">
+                                                                            <?php if ($m['qm_img1']): ?>
+                                                                                    <a href="<?php echo G5_DATA_URL . '/quote/' . $m['qm_img1']; ?>"
+                                                                                        target="_blank"
+                                                                                        class="text-blue-500 hover:text-blue-700"><i
+                                                                                            class="fas fa-image"></i></a>
+                                                                            <?php endif; ?>
+                                                                            <?php if ($m['qm_img2']): ?>
+                                                                                    <a href="<?php echo G5_DATA_URL . '/quote/' . $m['qm_img2']; ?>"
+                                                                                        target="_blank"
+                                                                                        class="text-blue-500 hover:text-blue-700"><i
+                                                                                            class="fas fa-image"></i></a>
+                                                                            <?php endif; ?>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                        <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
                                         <?php else: ?>
-                                            <div class="p-8 text-center text-gray-500 text-sm">입력된 실측 데이터가 없습니다.</div>
+                                                <div class="p-8 text-center text-gray-500 text-sm">입력된 실측 데이터가 없습니다.</div>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -1075,73 +1093,60 @@ include_once(G5_THEME_PATH . '/head.php');
                                     </div>
                                     <div class="p-0 overflow-x-auto">
                                         <?php if (count($item_data) > 0): ?>
-                                            <table class="w-full text-sm text-left min-w-[600px]">
-                                                <thead class="bg-gray-50 text-gray-500 border-b border-gray-100">
-                                                    <tr>
-                                                        <th class="px-4 py-3 text-center w-12 text-xs">No</th>
-                                                        <th class="px-4 py-3 text-xs md:text-sm">품목</th>
-                                                        <th class="px-4 py-3 text-xs md:text-sm">규격</th>
-                                                        <th class="px-4 py-3 text-center text-xs md:text-sm">수량</th>
-                                                        <th class="px-4 py-3 text-right text-xs md:text-sm">금액</th>
-                                                        <th class="px-4 py-3 text-xs md:text-sm">비고</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="divide-y divide-gray-100">
-                                                    <?php $no = 1;
-                                                    foreach ($item_data as $item): ?>
+                                                <table class="w-full text-sm text-left min-w-[600px]">
+                                                    <thead class="bg-gray-50 text-gray-500 border-b border-gray-100">
                                                         <tr>
-                                                            <td class="px-4 py-3 text-center text-gray-400 text-xs">
-                                                                <?php echo $no++; ?>
-                                                            </td>
-                                                            <td class="px-4 py-3 font-medium text-gray-800 text-xs md:text-sm">
-                                                                <?php echo $item['qi_item']; ?>
-                                                            </td>
-                                                            <td class="px-4 py-3 text-gray-600 text-xs md:text-sm">
-                                                                <?php echo $item['qi_spec']; ?>
-                                                            </td>
-                                                            <td class="px-4 py-3 text-center text-gray-700 text-xs md:text-sm">
-                                                                <?php echo number_format($item['qi_qty']); ?>
-                                                            </td>
-                                                            <td
-                                                                class="px-4 py-3 text-right font-bold text-gray-700 text-xs md:text-sm">
-                                                                <?php echo number_format($item['qi_amount']); ?>
-                                                            </td>
-                                                            <td class="px-4 py-3 text-gray-500 text-xs">
-                                                                <?php echo $item['qi_memo'] ?? $item['qi_note'] ?? ''; ?>
-                                                            </td>
+                                                            <th class="px-4 py-3 text-center w-12 text-xs">No</th>
+                                                            <th class="px-4 py-3 text-xs md:text-sm">품목</th>
+                                                            <th class="px-4 py-3 text-xs md:text-sm">규격</th>
+                                                            <th class="px-4 py-3 text-center text-xs md:text-sm">수량</th>
+                                                            <th class="px-4 py-3 text-right text-xs md:text-sm">금액</th>
+                                                            <th class="px-4 py-3 text-xs md:text-sm">비고</th>
                                                         </tr>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
+                                                    </thead>
+                                                    <tbody class="divide-y divide-gray-100">
+                                                        <?php $no = 1;
+                                                        foreach ($item_data as $item): ?>
+                                                                <tr>
+                                                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">
+                                                                        <?php echo $no++; ?>
+                                                                    </td>
+                                                                    <td class="px-4 py-3 font-medium text-gray-800 text-xs md:text-sm">
+                                                                        <?php echo $item['qi_item']; ?>
+                                                                    </td>
+                                                                    <td class="px-4 py-3 text-gray-600 text-xs md:text-sm">
+                                                                        <?php echo $item['qi_spec']; ?>
+                                                                    </td>
+                                                                    <td class="px-4 py-3 text-center text-gray-700 text-xs md:text-sm">
+                                                                        <?php echo number_format($item['qi_qty']); ?>
+                                                                    </td>
+                                                                    <td
+                                                                        class="px-4 py-3 text-right font-bold text-gray-700 text-xs md:text-sm">
+                                                                        <?php echo number_format($item['qi_amount']); ?>
+                                                                    </td>
+                                                                    <td class="px-4 py-3 text-gray-500 text-xs">
+                                                                        <?php echo $item['qi_memo'] ?? $item['qi_note'] ?? ''; ?>
+                                                                    </td>
+                                                                </tr>
+                                                        <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
                                         <?php else: ?>
-                                            <div class="p-8 text-center text-gray-500 text-sm">입력된 견적 품목이 없습니다.</div>
+                                                <div class="p-8 text-center text-gray-500 text-sm">입력된 견적 품목이 없습니다.</div>
                                         <?php endif; ?>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- [NEW] Action Buttons (Step 3) -->
-                            <div class="flex gap-4 justify-end items-center mt-6">
-                                <button type="button" onclick="go_list_safe()"
-                                    class="px-6 py-3.5 bg-gray-500 text-white rounded-xl hover:bg-gray-600 font-bold transition flex items-center gap-2">
-                                    <i class="fas fa-list"></i> 목록으로
-                                </button>
-                                <button type="button"
-                                    onclick="handle_save_submit(document.getElementById('registerForm'))"
-                                    class="px-8 py-3.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold transition flex items-center gap-2 shadow-soft">
-                                    <i class="fas fa-save"></i> 입력 정보 저장
-                                </button>
-                                <button type="button"
-                                    onclick="handle_register_submit(document.getElementById('registerForm'))"
-                                    class="px-10 py-3.5 bg-orange-600 text-white rounded-xl hover:bg-orange-700 font-bold transition flex items-center gap-2 shadow-soft">
-                                    <i class="fas fa-check-circle"></i> 고객 등록 완료
-                                </button>
-                            </div>
 
                         </div> <!-- [FIX] Close Left Column -->
 
                         <!-- Right Column: Step 2 (Quote Items) & Final Action -->
                         <div class="lg:col-span-3 space-y-6">
+
+
+
+
 
                             <!-- [NEW] Step 3 Final Action Card -->
                             <div
@@ -1173,10 +1178,6 @@ include_once(G5_THEME_PATH . '/head.php');
                                 </div>
                             </div>
 
-
-
-
-
                             <!-- 견적 요약 카드 (메인 영역으로 이동 및 스타일 개편) -->
                             <div class="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
                                 <div
@@ -1196,92 +1197,92 @@ include_once(G5_THEME_PATH . '/head.php');
                                             </thead>
                                             <tbody class="divide-y divide-gray-50">
                                                 <?php if (count($item_data) > 0): ?>
-                                                    <?php
-                                                    $total_supply = 0;
-                                                    $total_vat = 0;
-                                                    foreach ($item_data as $item) {
-                                                        $total_supply += $item['qi_amount'];
-                                                    }
-                                                    $total_vat = floor($total_supply * 0.1);
-                                                    $total_price = $total_supply + $total_vat;
-                                                    $deposit = $quote_data['qa_deposit'] ?? 0;
-                                                    $balance = $total_price - $deposit;
-                                                    ?>
-                                                    <?php foreach ($item_data as $item): ?>
-                                                        <tr class="hover:bg-gray-50/50 transition">
-                                                            <td class="py-4 px-2">
-                                                                <div class="font-bold text-gray-800 text-sm">
-                                                                    <?php echo $item['qi_item']; ?>
-                                                                </div>
-                                                                <div class="text-[11px] text-gray-400 mt-0.5">
-                                                                    <?php echo $item['qi_spec_w']; ?> x
-                                                                    <?php echo $item['qi_spec_h']; ?>
-                                                                </div>
-                                                            </td>
-                                                            <td class="py-4 px-2 text-center text-sm font-medium text-gray-600">
-                                                                <?php echo number_format($item['qi_qty']); ?>
-                                                            </td>
-                                                            <td class="py-4 px-2 text-right text-sm font-bold text-gray-900">
-                                                                <?php echo number_format($item['qi_amount']); ?>원
-                                                            </td>
-                                                        </tr>
-                                                    <?php endforeach; ?>
+                                                        <?php
+                                                        $total_supply = 0;
+                                                        $total_vat = 0;
+                                                        foreach ($item_data as $item) {
+                                                            $total_supply += $item['qi_amount'];
+                                                        }
+                                                        $total_vat = floor($total_supply * 0.1);
+                                                        $total_price = $total_supply + $total_vat;
+                                                        $deposit = $quote_data['qa_deposit'] ?? 0;
+                                                        $balance = $total_price - $deposit;
+                                                        ?>
+                                                        <?php foreach ($item_data as $item): ?>
+                                                                <tr class="hover:bg-gray-50/50 transition">
+                                                                    <td class="py-4 px-2">
+                                                                        <div class="font-bold text-gray-800 text-sm">
+                                                                            <?php echo $item['qi_item']; ?>
+                                                                        </div>
+                                                                        <div class="text-[11px] text-gray-400 mt-0.5">
+                                                                            <?php echo $item['qi_spec_w']; ?> x
+                                                                            <?php echo $item['qi_spec_h']; ?>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td class="py-4 px-2 text-center text-sm font-medium text-gray-600">
+                                                                        <?php echo number_format($item['qi_qty']); ?>
+                                                                    </td>
+                                                                    <td class="py-4 px-2 text-right text-sm font-bold text-gray-900">
+                                                                        <?php echo number_format($item['qi_amount']); ?>원
+                                                                    </td>
+                                                                </tr>
+                                                        <?php endforeach; ?>
 
-                                                    <!-- Summary Totals -->
-                                                    <tr class="bg-gray-50 border-t-2 border-gray-200">
-                                                        <td
-                                                            class="px-3 md:px-4 py-2 text-right text-xs font-bold text-gray-500">
-                                                            공급가액
-                                                        </td>
-                                                        <td
-                                                            class="px-3 md:px-4 py-2 text-right text-xs md:text-sm font-bold text-gray-700">
-                                                            <?php echo number_format($total_supply); ?>원
-                                                        </td>
-                                                    </tr>
-                                                    <tr class="bg-gray-50">
-                                                        <td
-                                                            class="px-3 md:px-4 py-2 text-right text-xs font-bold text-gray-500">
-                                                            부가세
-                                                        </td>
-                                                        <td
-                                                            class="px-3 md:px-4 py-2 text-right text-xs md:text-sm font-bold text-gray-700">
-                                                            <?php echo number_format($total_vat); ?>원
-                                                        </td>
-                                                    </tr>
-                                                    <tr class="bg-orange-50 border-t border-orange-100">
-                                                        <td
-                                                            class="px-3 md:px-4 py-3 text-right text-xs md:text-sm font-extrabold text-orange-800">
-                                                            합계</td>
-                                                        <td
-                                                            class="px-3 md:px-4 py-3 text-right text-sm md:text-lg font-extrabold text-orange-600">
-                                                            <?php echo number_format($total_price); ?>원
-                                                        </td>
-                                                    </tr>
-                                                    <?php if ($deposit > 0): ?>
-                                                        <tr class="bg-white border-t border-gray-200">
-                                                            <td class="px-4 py-2 text-right text-xs font-bold text-blue-600">계약금
-                                                            </td>
-                                                            <td class="px-4 py-2 text-right text-sm font-bold text-blue-600">
-                                                                -
-                                                                <?php echo number_format($deposit); ?>원
-                                                            </td>
-                                                        </tr>
-                                                        <tr class="bg-gray-50 border-t border-gray-200">
+                                                        <!-- Summary Totals -->
+                                                        <tr class="bg-gray-50 border-t-2 border-gray-200">
                                                             <td
-                                                                class="px-4 py-3 text-right text-sm font-extrabold text-gray-800">
-                                                                잔금
+                                                                class="px-3 md:px-4 py-2 text-right text-xs font-bold text-gray-500">
+                                                                공급가액
                                                             </td>
                                                             <td
-                                                                class="px-4 py-3 text-right text-lg font-extrabold text-gray-800">
-                                                                <?php echo number_format($balance); ?>원
+                                                                class="px-3 md:px-4 py-2 text-right text-xs md:text-sm font-bold text-gray-700">
+                                                                <?php echo number_format($total_supply); ?>원
                                                             </td>
                                                         </tr>
-                                                    <?php endif; ?>
+                                                        <tr class="bg-gray-50">
+                                                            <td
+                                                                class="px-3 md:px-4 py-2 text-right text-xs font-bold text-gray-500">
+                                                                부가세
+                                                            </td>
+                                                            <td
+                                                                class="px-3 md:px-4 py-2 text-right text-xs md:text-sm font-bold text-gray-700">
+                                                                <?php echo number_format($total_vat); ?>원
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="bg-orange-50 border-t border-orange-100">
+                                                            <td
+                                                                class="px-3 md:px-4 py-3 text-right text-xs md:text-sm font-extrabold text-orange-800">
+                                                                합계</td>
+                                                            <td
+                                                                class="px-3 md:px-4 py-3 text-right text-sm md:text-lg font-extrabold text-orange-600">
+                                                                <?php echo number_format($total_price); ?>원
+                                                            </td>
+                                                        </tr>
+                                                        <?php if ($deposit > 0): ?>
+                                                                <tr class="bg-white border-t border-gray-200">
+                                                                    <td class="px-4 py-2 text-right text-xs font-bold text-blue-600">계약금
+                                                                    </td>
+                                                                    <td class="px-4 py-2 text-right text-sm font-bold text-blue-600">
+                                                                        -
+                                                                        <?php echo number_format($deposit); ?>원
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="bg-gray-50 border-t border-gray-200">
+                                                                    <td
+                                                                        class="px-4 py-3 text-right text-sm font-extrabold text-gray-800">
+                                                                        잔금
+                                                                    </td>
+                                                                    <td
+                                                                        class="px-4 py-3 text-right text-lg font-extrabold text-gray-800">
+                                                                        <?php echo number_format($balance); ?>원
+                                                                    </td>
+                                                                </tr>
+                                                        <?php endif; ?>
                                                 <?php else: ?>
-                                                    <tr>
-                                                        <td colspan="2" class="p-8 text-center text-gray-500">견적 항목이 없습니다.
-                                                        </td>
-                                                    </tr>
+                                                        <tr>
+                                                            <td colspan="2" class="p-8 text-center text-gray-500">견적 항목이 없습니다.
+                                                            </td>
+                                                        </tr>
                                                 <?php endif; ?>
                                             </tbody>
                                         </table>
@@ -1289,101 +1290,101 @@ include_once(G5_THEME_PATH . '/head.php');
                                 </div>
 
                                 <?php if (!empty($quote_data['qa_customer_id'])): ?>
-                                    <!-- [NEW] 등록 완료 시: 진행상태 & 공유 링크 관리 (기존 상세 페이지 기능 이식) -->
-                                    <?php
-                                    // Load customer data locally for this view
-                                    $cust_id = $quote_data['qa_customer_id'];
-                                    $cust_status = sql_fetch(" SELECT * FROM g5_customer_status WHERE customer_id = '$cust_id' ");
-                                    $cust_link = sql_fetch(" SELECT * FROM g5_customer_share_link WHERE customer_id = '$cust_id' ");
-                                    ?>
+                                        <!-- [NEW] 등록 완료 시: 진행상태 & 공유 링크 관리 (기존 상세 페이지 기능 이식) -->
+                                        <?php
+                                        // Load customer data locally for this view
+                                        $cust_id = $quote_data['qa_customer_id'];
+                                        $cust_status = sql_fetch(" SELECT * FROM g5_customer_status WHERE customer_id = '$cust_id' ");
+                                        $cust_link = sql_fetch(" SELECT * FROM g5_customer_share_link WHERE customer_id = '$cust_id' ");
+                                        ?>
 
-                                    <!-- 1. Status Management -->
-                                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                            <i class="fas fa-tasks text-orange-600"></i> 진행상태
-                                        </h3>
-                                        <!-- 상태 변경 폼 (별도 처리 필요, 혹은 AJAX) -->
-                                        <!-- [FIX] 상태 변경 (AJAX) - 중첩 폼 제거 -->
-
-
+                                        <!-- 1. Status Management -->
+                                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                                            <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                                <i class="fas fa-tasks text-orange-600"></i> 진행상태
+                                            </h3>
+                                            <!-- 상태 변경 폼 (별도 처리 필요, 혹은 AJAX) -->
+                                            <!-- [FIX] 상태 변경 (AJAX) - 중첩 폼 제거 -->
 
 
-                                        <!-- 필요한 다른 hidden 필드들... 여기서는 약식으로 구현 후 보강 -->
 
-                                        <select name="status_step"
-                                            onchange="updateStatus(this.value, <?php echo $cust_id; ?>)"
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 font-semibold mb-2">
-                                            <?php
-                                            $statuses = ['견적서발송', '계약금입금', '디자인작업중', '제작중', '시공날짜조정', '시공중', '시공완료', '입금완료'];
-                                            $curr_stat = $cust_status['status_step'] ?? '견적서발송';
-                                            foreach ($statuses as $s) {
-                                                $selected = ($curr_stat == $s) ? 'selected' : '';
-                                                echo "<option value='$s' $selected>$s</option>";
-                                            }
-                                            ?>
-                                        </select>
-                                        <div class="text-xs text-gray-500">
-                                            최종 변경:
-                                            <?php echo $cust_status['updated_at']; ?>
-                                            (
-                                            <?php echo $cust_status['updated_by']; ?>)
+
+                                            <!-- 필요한 다른 hidden 필드들... 여기서는 약식으로 구현 후 보강 -->
+
+                                            <select name="status_step"
+                                                onchange="updateStatus(this.value, <?php echo $cust_id; ?>)"
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 font-semibold mb-2">
+                                                <?php
+                                                $statuses = ['견적서발송', '계약금입금', '디자인작업중', '제작중', '시공날짜조정', '시공중', '시공완료', '입금완료'];
+                                                $curr_stat = $cust_status['status_step'] ?? '견적서발송';
+                                                foreach ($statuses as $s) {
+                                                    $selected = ($curr_stat == $s) ? 'selected' : '';
+                                                    echo "<option value='$s' $selected>$s</option>";
+                                                }
+                                                ?>
+                                            </select>
+                                            <div class="text-xs text-gray-500">
+                                                최종 변경:
+                                                <?php echo $cust_status['updated_at']; ?>
+                                                (
+                                                <?php echo $cust_status['updated_by']; ?>)
+                                            </div>
+
                                         </div>
 
-                                    </div>
-
-                                    <!-- 2. Share Link -->
-                                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                            <i class="fas fa-link text-orange-600"></i> 고객 공유 링크
-                                        </h3>
-                                        <?php if ($cust_link): ?>
-                                            <div class="space-y-3">
-                                                <div class="flex items-center gap-2">
-                                                    <input type="text" id="share_url_mini"
-                                                        value="<?php echo G5_URL . '/theme/basic/customer.php?token=' . $cust_link['share_token']; ?>"
-                                                        class="flex-1 px-3 py-2 border border-gray-300 rounded text-xs"
-                                                        readonly>
-                                                    <button type="button" onclick="copyShareUrlMini()"
-                                                        class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs text-nowrap">
-                                                        복사
+                                        <!-- 2. Share Link -->
+                                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                                            <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                                <i class="fas fa-link text-orange-600"></i> 고객 공유 링크
+                                            </h3>
+                                            <?php if ($cust_link): ?>
+                                                    <div class="space-y-3">
+                                                        <div class="flex items-center gap-2">
+                                                            <input type="text" id="share_url_mini"
+                                                                value="<?php echo G5_URL . '/theme/basic/customer.php?token=' . $cust_link['share_token']; ?>"
+                                                                class="flex-1 px-3 py-2 border border-gray-300 rounded text-xs"
+                                                                readonly>
+                                                            <button type="button" onclick="copyShareUrlMini()"
+                                                                class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs text-nowrap">
+                                                                복사
+                                                            </button>
+                                                        </div>
+                                                        <div class="flex gap-2">
+                                                            <button type="button" onclick="regenerateLink(<?php echo $cust_id; ?>)"
+                                                                class="flex-1 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 text-xs">
+                                                                재발급
+                                                            </button>
+                                                            <button type="button"
+                                                                onclick="toggleLink(<?php echo $cust_id; ?>, <?php echo $cust_link['is_active'] ? 0 : 1; ?>)"
+                                                                class="flex-1 py-2 <?php echo $cust_link['is_active'] ? 'bg-red-600' : 'bg-green-600'; ?> text-white rounded hover:opacity-90 text-xs">
+                                                                <?php echo $cust_link['is_active'] ? '비활성화' : '활성화'; ?>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                            <?php else: ?>
+                                                    <button type="button" onclick="generateLink(<?php echo $cust_id; ?>)"
+                                                        class="w-full py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-bold">
+                                                        <i class="fas fa-plus mr-2"></i> 링크 생성
                                                     </button>
-                                                </div>
-                                                <div class="flex gap-2">
-                                                    <button type="button" onclick="regenerateLink(<?php echo $cust_id; ?>)"
-                                                        class="flex-1 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 text-xs">
-                                                        재발급
-                                                    </button>
-                                                    <button type="button"
-                                                        onclick="toggleLink(<?php echo $cust_id; ?>, <?php echo $cust_link['is_active'] ? 0 : 1; ?>)"
-                                                        class="flex-1 py-2 <?php echo $cust_link['is_active'] ? 'bg-red-600' : 'bg-green-600'; ?> text-white rounded hover:opacity-90 text-xs">
-                                                        <?php echo $cust_link['is_active'] ? '비활성화' : '활성화'; ?>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        <?php else: ?>
-                                            <button type="button" onclick="generateLink(<?php echo $cust_id; ?>)"
-                                                class="w-full py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-bold">
-                                                <i class="fas fa-plus mr-2"></i> 링크 생성
-                                            </button>
-                                        <?php endif; ?>
-                                    </div>
+                                            <?php endif; ?>
+                                        </div>
 
-                                    <!-- [NEW] Memos (Right Column) -->
-                                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                                        <h3 class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-                                            🔒 내부 메모 <span class="text-xs font-normal text-gray-400">(고객 노출 X)</span>
-                                        </h3>
-                                        <textarea name="qa_memo"
-                                            class="w-full h-32 p-3 border border-gray-200 rounded-lg bg-yellow-50/50 resize-none text-sm placeholder-gray-400 focus:bg-white focus:border-orange-500 transition mb-4"
-                                            placeholder="관리자 전용 메모입니다."><?php echo $quote_data['qa_memo']; ?></textarea>
+                                        <!-- [NEW] Memos (Right Column) -->
+                                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                                            <h3 class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                                                🔒 내부 메모 <span class="text-xs font-normal text-gray-400">(고객 노출 X)</span>
+                                            </h3>
+                                            <textarea name="qa_memo"
+                                                class="w-full h-32 p-3 border border-gray-200 rounded-lg bg-yellow-50/50 resize-none text-sm placeholder-gray-400 focus:bg-white focus:border-orange-500 transition mb-4"
+                                                placeholder="관리자 전용 메모입니다."><?php echo $quote_data['qa_memo']; ?></textarea>
 
-                                        <h3 class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-                                            📢 고객 참고사항 <span class="text-xs font-normal text-orange-500">(견적서 하단 표시)</span>
-                                        </h3>
-                                        <textarea name="qa_memo_user"
-                                            class="w-full h-32 p-3 border border-gray-200 rounded-lg resize-none text-sm placeholder-gray-400 focus:border-orange-500 transition"
-                                            placeholder="시공 일정, 입금 계좌 등 고객에게 알릴 내용을 입력하세요."><?php echo $quote_data['qa_memo_user']; ?></textarea>
-                                    </div>
+                                            <h3 class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                                                📢 고객 참고사항 <span class="text-xs font-normal text-orange-500">(견적서 하단 표시)</span>
+                                            </h3>
+                                            <textarea name="qa_memo_user"
+                                                class="w-full h-32 p-3 border border-gray-200 rounded-lg resize-none text-sm placeholder-gray-400 focus:border-orange-500 transition"
+                                                placeholder="시공 일정, 입금 계좌 등 고객에게 알릴 내용을 입력하세요."><?php echo $quote_data['qa_memo_user']; ?></textarea>
+                                        </div>
 
                                 <?php endif; ?>
                             </div>
@@ -1396,12 +1397,6 @@ include_once(G5_THEME_PATH . '/head.php');
 
 
         <script>
-
-            function go_list_safe() {
-                if (confirm('목록으로 이동하시겠습니까? 저장하지 않은 내용은 사라질 수 있습니다.')) {
-                    location.href = './admin_quote.php';
-                }
-            }
 
             // Search Customers
             function searchCustomers() {
@@ -1862,9 +1857,9 @@ include_once(G5_THEME_PATH . '/head.php');
                             <div class="flex justify-between items-center mb-4 border-b border-gray-200 pb-2">
                                 <h4 class="font-bold text-gray-700">DB 저장된 값 (Saved)</h4>
                                 <?php if (($quote_data['qa_tax_yn'] ?? '') != ''): ?>
-                                    <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-bold">저장됨</span>
+                                        <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-bold">저장됨</span>
                                 <?php else: ?>
-                                    <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded font-bold">미저장</span>
+                                        <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded font-bold">미저장</span>
                                 <?php endif; ?>
                             </div>
                             <div class="space-y-3 text-sm">
@@ -2045,6 +2040,8 @@ include_once(G5_THEME_PATH . '/head.php');
                 const email = form.qa_tax_email ? form.qa_tax_email.value : '-';
                 const supply = form.qa_tax_supply_price ? form.qa_tax_supply_price.value : '0';
                 const vat = form.qa_tax_vat_price ? form.qa_tax_vat_price.value : '0';
+                const cond = form.qa_tax_condition ? form.qa_tax_condition.value : '-';
+                const sector = form.qa_tax_sector ? form.qa_tax_sector.value : '-';
 
                 // Calc Total for Display
                 const supplyNum = parseInt(supply.replace(/,/g, '')) || 0;
@@ -2068,6 +2065,10 @@ include_once(G5_THEME_PATH . '/head.php');
                 if (document.getElementById('modal_form_supply')) document.getElementById('modal_form_supply').innerText = supply || '0';
                 if (document.getElementById('modal_form_vat')) document.getElementById('modal_form_vat').innerText = vat || '0';
                 if (document.getElementById('modal_form_total')) document.getElementById('modal_form_total').innerText = total;
+
+                // [NEW] Bind Condition/Sector
+                if (document.getElementById('modal_form_condition')) document.getElementById('modal_form_condition').innerText = cond || '-';
+                if (document.getElementById('modal_form_sector')) document.getElementById('modal_form_sector').innerText = sector || '-';
 
                 modal.classList.remove('hidden');
             }

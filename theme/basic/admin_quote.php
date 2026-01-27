@@ -1900,6 +1900,21 @@ include_once(G5_THEME_PATH . '/head.php');
                                             </script>
 
 
+                                            <!-- Bottom Action Buttons -->
+                                            <div class="flex gap-3 justify-end mt-8">
+                                                <button type="button" onclick="go_list_safe()"
+                                                    class="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-bold shadow-sm">
+                                                    <i class="fas fa-list mr-2"></i> 목록
+                                                </button>
+                                                <button type="button" onclick="fquote_submit('save')"
+                                                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-bold shadow-sm">
+                                                    <i class="fas fa-save mr-2"></i> 저장
+                                                </button>
+                                                <button type="button" onclick="goToStep3()"
+                                                    class="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition font-bold shadow-sm">
+                                                    다음 (3단계로) <i class="fas fa-arrow-right ml-2"></i>
+                                                </button>
+                                            </div>
                                         </div> <!-- End Left Form Area (space-y-6) -->
                                     </div> <!-- End space-y-6 wrapper -->
                                 </div> <!-- End empty wrapper -->
@@ -1936,6 +1951,32 @@ include_once(G5_THEME_PATH . '/head.php');
                     });
                 }
                 return false;
+            }
+
+            function goToStep3() {
+                if (typeof isDirty !== 'undefined' && isDirty) {
+                    open_confirm("변경사항을 저장하고 고객 등록(3단계)으로 이동하시겠습니까?", function () {
+                        const f = document.getElementById('fquote');
+                        const redir = document.createElement('input');
+                        redir.type = 'hidden';
+                        redir.name = 'redirect_url';
+                        redir.value = './admin_customer.php?w=form&qa_id=<?php echo $qa_id; ?>';
+                        f.appendChild(redir);
+                        fquote_submit('save');
+                    });
+                } else {
+                    location.href = './admin_customer.php?w=form&qa_id=<?php echo $qa_id; ?>';
+                }
+            }
+
+            function go_list_safe() {
+                if (typeof isDirty !== 'undefined' && isDirty) {
+                    open_confirm("변경사항이 저장되지 않았습니다. 목록으로 이동하시겠습니까?", function () {
+                        location.href = './admin_quote.php';
+                    });
+                } else {
+                    location.href = './admin_quote.php';
+                }
             }
 
 

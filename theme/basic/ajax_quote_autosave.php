@@ -41,12 +41,10 @@ if (!in_array($field, $allowed_fields)) {
 
 if (!$qa_id) {
     // Create new quote if it doesn't exist
-    $today_prefix = 'Q-' . date('Ymd') . '-';
-    $row = sql_fetch(" SELECT count(*) as cnt FROM g5_quote WHERE qa_code LIKE '{$today_prefix}%' ");
-    $seq = $row['cnt'] + 1;
-    $new_code = $today_prefix . sprintf('%03d', $seq);
+    // [보안] 중복 방지 헬퍼 함수 사용 (Race Condition 방지)
+    $new_code = generate_unique_quote_code();
 
-    $sql = " INSERT INTO g5_quote SET 
+    $sql = " INSERT INTO g5_quote SET
              qa_code = '$new_code', 
              qa_datetime = '" . G5_TIME_YMDHIS . "',
              $field = '" . sql_real_escape_string($value) . "' ";

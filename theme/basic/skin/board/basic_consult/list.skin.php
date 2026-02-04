@@ -2,6 +2,10 @@
 if (!defined('_GNUBOARD_'))
     exit; // 개별 페이지 접근 불가
 
+// [Admin Wrapper] 관리자 래퍼 내부일 경우 항목 링크를 admin_consult.php로 재정의
+// list 배열의 각 href를 덮어쓰기 위한 플래그
+$use_admin_wrapper_links = defined('IN_ADMIN_WRAPPER') && IN_ADMIN_WRAPPER && $bo_table == 'consult';
+
 // 선택옵션으로 인해 셀합치기가 가변적으로 변함
 $colspan = 5;
 
@@ -161,7 +165,14 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
                                         class="bo_cate_link"><?php echo $list[$i]['ca_name'] ?></a>
                                 <?php } ?>
                                 <div class="bo_tit">
-                                    <a href="<?php echo $list[$i]['href'] ?>">
+                                    <?php 
+                                    // [Admin Link] 관리자 래퍼일 경우 상세 링크를 admin_consult.php로 변경
+                                    $item_href = $list[$i]['href'];
+                                    if ($use_admin_wrapper_links) {
+                                        $item_href = G5_THEME_URL . '/admin_consult.php?bo_table=consult&wr_id=' . $list[$i]['wr_id'];
+                                    }
+                                    ?>
+                                    <a href="<?php echo $item_href ?>">
                                         <?php echo $list[$i]['icon_reply'] ?>
                                         <?php
                                         if (isset($list[$i]['icon_secret']))

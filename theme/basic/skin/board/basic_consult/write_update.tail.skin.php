@@ -2,6 +2,11 @@
 if (!defined('_GNUBOARD_'))
     exit;
 
+// [ADMIN] 관리자가 작성/수정 시 관리자 페이지로 리다이렉트
+if ($is_admin) {
+    goto_url(G5_THEME_URL . "/admin_consult.php?bo_table=" . $bo_table . "&wr_id=" . $wr_id . $qstr);
+}
+
 // 상담 신청 완료 후 완료 페이지로 리다이렉트
 // 새 글 작성(w='')인 경우에만 리다이렉트
 if ($w == '') {

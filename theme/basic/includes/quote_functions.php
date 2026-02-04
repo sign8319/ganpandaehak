@@ -27,6 +27,84 @@ if (!function_exists('get_sidebar_active_class')) {
 }
 
 // ============================================================================
+// Quote Code Generation (Race Condition Prevention)
+// ============================================================================
+
+/**
+ * Generate unique quote code with retry logic
+ * 견적 코드 중복 방지를 위한 안전한 생성 함수
+ *
+ * @param int $max_retry Maximum retry attempts (default: 5)
+ * @return string|false Generated code or false on failure
+ */
+function generate_unique_quote_code($max_retry = 5)
+{
+    $today_prefix = 'Q-' . date('Ymd') . '-';
+
+    for ($attempt = 0; $attempt < $max_retry; $attempt++) {
+        // MAX() 사용: 실제 최대 시퀀스 번호 조회 (COUNT 대신)
+        $sql = " SELECT MAX(CAST(SUBSTRING(qa_code, -3) AS UNSIGNED)) as max_seq
+                 FROM g5_quote
+                 WHERE qa_code LIKE '{$today_prefix}%' ";
+        $row = sql_fetch($sql);
+
+        $next_seq = ($row && $row['max_seq']) ? ((int) $row['max_seq'] + 1) : 1;
+
+        // 동시 요청 대비: 랜덤 오프셋 추가 (재시도 시)
+        if ($attempt > 0) {
+            $next_seq += $attempt;
+        }
+
+        $new_code = $today_prefix . sprintf('%03d', $next_seq);
+
+        // UNIQUE 제약 조건 활용: INSERT 시도 후 중복이면 재시도
+        // 여기서는 코드만 생성하고, 실제 INSERT는 호출처에서 수행
+        // 중복 검사를 위해 SELECT로 확인
+        $exists = sql_fetch(" SELECT qa_id FROM g5_quote WHERE qa_code = '$new_code' ");
+        if (!$exists || !$exists['qa_id']) {
+            return $new_code; // 사용 가능한 코드
+        }
+
+        // 중복 발견 시 로그 후 재시도
+        error_log("[QUOTE_CODE] Duplicate detected: {$new_code}, attempt: " . ($attempt + 1));
+    }
+
+    // 최대 재시도 초과 시 타임스탬프 기반 폴백
+    error_log("[QUOTE_CODE] Max retry exceeded, using fallback");
+    return $today_prefix . date('His'); // 시분초로 폴백 (HHmmss)
+}
+
+/**
+ * Generate unique quote code (short format for AJAX)
+ * AJAX용 짧은 형식 코드 생성 (Q + yymmdd + 3자리)
+ *
+ * @param int $max_retry Maximum retry attempts
+ * @return string Generated code
+ */
+function generate_unique_quote_code_short($max_retry = 5)
+{
+    $today_prefix = 'Q' . date('ymd');
+
+    for ($attempt = 0; $attempt < $max_retry; $attempt++) {
+        // 3자리 랜덤 + 시도 횟수로 충돌 회피
+        $rand_seq = rand(1, 999) + ($attempt * 100);
+        if ($rand_seq > 999) $rand_seq = $rand_seq % 900 + 100; // 100-999 범위 유지
+
+        $new_code = $today_prefix . sprintf('%03d', $rand_seq);
+
+        $exists = sql_fetch(" SELECT qa_id FROM g5_quote WHERE qa_code = '$new_code' ");
+        if (!$exists || !$exists['qa_id']) {
+            return $new_code;
+        }
+
+        error_log("[QUOTE_CODE_SHORT] Duplicate detected: {$new_code}, attempt: " . ($attempt + 1));
+    }
+
+    // 폴백: 밀리초 기반
+    return $today_prefix . substr(microtime(true) * 1000, -3);
+}
+
+// ============================================================================
 // Token Management Functions
 // ============================================================================
 

@@ -115,10 +115,10 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
                 </div>
 
                 <div>
-                    <label for="wr_phone" class="block text-gray-700 text-sm font-bold mb-1">연락처 <span
+                    <label for="wr_1" class="block text-gray-700 text-sm font-bold mb-1">연락처 <span
                             class="text-orange-500">*</span></label>
-                    <input type="tel" name="wr_phone" id="wr_phone"
-                        value="<?php echo isset($write['wr_phone']) ? $write['wr_phone'] : (isset($member['mb_hp']) ? $member['mb_hp'] : ''); ?>"
+                    <input type="tel" name="wr_1" id="wr_1"
+                        value="<?php echo isset($write['wr_1']) ? $write['wr_1'] : (isset($member['mb_hp']) ? $member['mb_hp'] : ''); ?>"
                         required
                         class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-orange-500 focus:border-orange-500 block p-2.5 transition-colors"
                         placeholder="예: 010-1234-5678" oninput="this.value = this.value.replace(/[^0-9-]/g, '')"
@@ -158,7 +158,7 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
                 <input type="text" name="wr_7" id="wr_7"
                     value="<?php echo isset($write['wr_7']) ? $write['wr_7'] : ''; ?>"
                     class="w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-orange-500 focus:border-orange-500 block p-2.5 transition-colors"
-                    placeholder="상세 주소를 입력해주세요 (예: 101동 101호)">
+                    placeholder="상세 주소를 입력해주세요 1004동 1004호">
             </div>
 
             <hr class="border-gray-100 mb-4">
@@ -166,54 +166,54 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
             <div class="space-y-3 md:space-y-5">
                 <!-- 상담 문의 필드들 -->
                 <div>
-                    <label for="wr_1" class="block text-gray-700 text-sm font-bold mb-1">어떤 간판이 필요하세요?</label>
+                    <label for="wr_8" class="block text-gray-700 text-sm font-bold mb-1">어떤 간판이 필요하세요?</label>
                     <div
                         class="custom-select w-full bg-white border border-gray-200 rounded-xl relative hover:border-gray-400 transition-colors">
                         <div class="selected-option flex items-center justify-between cursor-pointer p-2.5"
-                            onclick="toggleDropdownWrite('wr_1', event)">
+                            onclick="toggleDropdownWrite('wr_8', event)">
                             <span
-                                class="selected-text text-gray-600"><?php echo isset($write['wr_1']) && $write['wr_1'] ? $write['wr_1'] : '간판 종류를 선택해주세요'; ?></span>
+                                class="selected-text text-gray-600"><?php echo isset($write['wr_8']) && $write['wr_8'] ? $write['wr_8'] : '간판 종류를 선택해주세요'; ?></span>
                             <i class="fa fa-chevron-down text-gray-400"></i>
                         </div>
                         <div
                             class="dropdown-options absolute top-full left-0 right-0 bg-white border border-gray-200 max-h-60 overflow-y-auto z-50 hidden rounded-xl shadow-xl mt-2 p-1">
                             <div class="option-item px-4 py-2.5 cursor-pointer hover:bg-orange-50 rounded-lg text-sm text-gray-700"
-                                data-value="" onclick="selectOptionWrite('wr_1', '', '간판 종류를 선택해주세요', event)">선택하지 않음
+                                data-value="" onclick="selectOptionWrite('wr_8', '', '간판 종류를 선택해주세요', event)">선택하지 않음
                             </div>
                             <div class="option-item px-4 py-2.5 cursor-pointer hover:bg-orange-50 rounded-lg text-sm text-gray-700"
-                                data-value="플렉스 간판" onclick="selectOptionWrite('wr_1', '플렉스 간판', '플렉스 간판', event)">플렉스
+                                data-value="플렉스 간판" onclick="selectOptionWrite('wr_8', '플렉스 간판', '플렉스 간판', event)">플렉스
                                 간판</div>
                             <div class="option-item px-4 py-2.5 cursor-pointer hover:bg-orange-50 rounded-lg text-sm text-gray-700"
-                                data-value="채널 간판" onclick="selectOptionWrite('wr_1', '채널 간판', '채널 간판', event)">채널 간판
+                                data-value="채널 간판" onclick="selectOptionWrite('wr_8', '채널 간판', '채널 간판', event)">채널 간판
                             </div>
                             <div class="option-item px-4 py-2.5 cursor-pointer hover:bg-orange-50 rounded-lg text-sm text-gray-700"
-                                data-value="돌출 간판" onclick="selectOptionWrite('wr_1', '돌출 간판', '돌출 간판', event)">돌출 간판
+                                data-value="돌출 간판" onclick="selectOptionWrite('wr_8', '돌출 간판', '돌출 간판', event)">돌출 간판
                             </div>
                             <div class="option-item px-4 py-2.5 cursor-pointer hover:bg-orange-50 rounded-lg text-sm text-gray-700"
-                                data-value="실사 출력" onclick="selectOptionWrite('wr_1', '실사 출력', '실사 출력', event)">실사
+                                data-value="실사 출력" onclick="selectOptionWrite('wr_8', '실사 출력', '실사 출력', event)">실사
                                 출력(유리창선팅,현수막 등)</div>
                             <div class="option-item px-4 py-2.5 cursor-pointer hover:bg-orange-50 rounded-lg text-sm text-gray-700"
-                                data-value="지주 간판" onclick="selectOptionWrite('wr_1', '지주 간판', '지주 간판', event)">지주 간판
+                                data-value="지주 간판" onclick="selectOptionWrite('wr_8', '지주 간판', '지주 간판', event)">지주 간판
                             </div>
                             <div class="option-item px-4 py-2.5 cursor-pointer hover:bg-orange-50 rounded-lg text-sm text-gray-700"
-                                data-value="네온 사인" onclick="selectOptionWrite('wr_1', '네온 사인', '네온 사인', event)">네온 사인
+                                data-value="네온 사인" onclick="selectOptionWrite('wr_8', '네온 사인', '네온 사인', event)">네온 사인
                             </div>
                             <div class="option-item px-4 py-2.5 cursor-pointer hover:bg-orange-50 rounded-lg text-sm text-gray-700"
-                                data-value="실내 사인물" onclick="selectOptionWrite('wr_1', '실내 사인물', '실내 사인물', event)">실내
+                                data-value="실내 사인물" onclick="selectOptionWrite('wr_8', '실내 사인물', '실내 사인물', event)">실내
                                 사인물</div>
                             <div class="option-item px-4 py-2.5 cursor-pointer hover:bg-orange-50 rounded-lg text-sm text-gray-700"
-                                data-value="간판 철거" onclick="selectOptionWrite('wr_1', '간판 철거', '간판 철거', event)">간판 철거
+                                data-value="간판 철거" onclick="selectOptionWrite('wr_8', '간판 철거', '간판 철거', event)">간판 철거
                             </div>
                             <div class="option-item px-4 py-2.5 cursor-pointer hover:bg-orange-50 rounded-lg text-sm text-gray-700"
                                 data-value="프랜차이즈/기업상담"
-                                onclick="selectOptionWrite('wr_1', '프랜차이즈/기업상담', '프랜차이즈/기업상담', event)">프랜차이즈/기업상담</div>
+                                onclick="selectOptionWrite('wr_8', '프랜차이즈/기업상담', '프랜차이즈/기업상담', event)">프랜차이즈/기업상담</div>
                             <div class="option-item px-4 py-2.5 cursor-pointer hover:bg-orange-50 rounded-lg text-sm text-gray-700 font-medium text-orange-600"
                                 data-value="잘 모르겠어요(상담이 필요해요)"
-                                onclick="selectOptionWrite('wr_1', '잘 모르겠어요(상담이 필요해요)', '잘 모르겠어요(상담이 필요해요)', event)">잘
+                                onclick="selectOptionWrite('wr_8', '잘 모르겠어요(상담이 필요해요)', '잘 모르겠어요(상담이 필요해요)', event)">잘
                                 모르겠어요(상담이 필요해요)</div>
                         </div>
-                        <input type="hidden" id="wr_1" name="wr_1"
-                            value="<?php echo isset($write['wr_1']) ? $write['wr_1'] : ''; ?>">
+                        <input type="hidden" id="wr_8" name="wr_8"
+                            value="<?php echo isset($write['wr_8']) ? $write['wr_8'] : ''; ?>">
                     </div>
                 </div>
 
@@ -321,13 +321,21 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
 
             <!-- Captcha disabled -->
             <?php /* if ($is_use_captcha) { //자동등록방지  ?>
-           <div class="write_div mt-6">
-               <?php echo $captcha_html ?>
-           </div>
-       <?php } */ ?>
+<div class="write_div mt-6">
+<?php echo $captcha_html ?>
+</div>
+<?php } */ ?>
 
 
-            <div class="mt-10 flex justify-center">
+            <div class="mt-10 flex justify-center gap-3">
+                <?php if ($is_admin) {
+                    $cancel_href = ($bo_table == 'consult') ? G5_THEME_URL . '/admin_consult.php?bo_table=consult' : get_pretty_url($bo_table);
+                    ?>
+                    <a href="<?php echo $cancel_href; ?>"
+                        class="w-full sm:w-auto px-8 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-base font-bold rounded-lg shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 flex items-center justify-center">
+                        취소(목록)
+                    </a>
+                <?php } ?>
                 <button type="submit" id="btn_submit" accesskey="s"
                     class="w-full sm:w-auto px-8 py-2.5 bg-gray-900 hover:bg-black text-white text-base font-bold rounded-lg shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
                     <span>상담 신청하기</span>
@@ -526,9 +534,9 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
         function fwrite_submit(f) {
             // wr_5의 내용을 wr_content로 변환 (상담 신청 정보 포맷팅)
             var name = f.wr_name ? f.wr_name.value : '';
-            var phone = f.wr_phone ? f.wr_phone.value : '';
+            var phone = f.wr_1 ? f.wr_1.value : '';
             var email = f.wr_email ? f.wr_email.value : '';
-            var signboardType = f.wr_1 ? f.wr_1.value : '';
+            var signboardType = f.wr_8 ? f.wr_8.value : '';
             var designFile = f.wr_2 ? f.wr_2.value : '';
             var budget = f.wr_3 ? f.wr_3.value : '';
             var openDate = f.wr_4 ? f.wr_4.value : '';

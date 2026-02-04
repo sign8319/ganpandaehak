@@ -5,6 +5,11 @@ include_once(G5_LIB_PATH . '/thumbnail.lib.php');
 
 // 스타일시트 연결
 add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">', 0);
+
+// [Admin Wrapper Link Fix] 관리자 권한이면 목록 링크를 관리자 래퍼로 강제 변경
+if ($is_admin && $bo_table == 'payment') {
+    $list_href = G5_THEME_URL . '/admin_payment.php?bo_table=payment';
+}
 ?>
 
 <script src="https://cdn.tailwindcss.com"></script>

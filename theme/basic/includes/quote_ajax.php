@@ -3,12 +3,28 @@ if (!defined('_GNUBOARD_'))
     exit;
 
 /**
- * [COMMON AJAX HANDLER] 
+ * [COMMON AJAX HANDLER]
  * 견적 시스템 1, 2, 3단계 공통 AJAX 처리
+ *
+ * [보안] 모든 핸들러는 관리자 전용 (Admin-only)
+ * 비관리자 접근 시 통일된 JSON 응답: {"success":false, "error":true, "message":"권한 없음"}
  */
 
-// 1. AJAX Summary (견적 상세 정보 조회)
+/**
+ * [Helper] 관리자 권한 거부 응답 (통일된 형식)
+ * - Content-Type 헤더 포함
+ * - 프론트 호환을 위해 success:false + error:true 동시 포함
+ */
+function deny_ajax_no_admin()
+{
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['success' => false, 'error' => true, 'message' => '권한 없음'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// 1. AJAX Summary (견적 상세 정보 조회) - Admin Only
 if ($w == 'ajax_summary') {
+    if (!$is_admin) deny_ajax_no_admin();
     $qa_id = isset($_GET['qa_id']) ? (int) $_GET['qa_id'] : 0;
     if ($qa_id) {
         $quote = sql_fetch("select * from g5_quote where qa_id = '$qa_id'");
@@ -33,11 +49,13 @@ if ($w == 'ajax_summary') {
     exit;
 }
 
-// 2. AJAX Create Quote (첫 입력 시 ID 생성)
+// 2. AJAX Create Quote (첫 입력 시 ID 생성) - Admin Only
 if ($w == 'ajax_create_quote') {
+    if (!$is_admin) deny_ajax_no_admin();
     $qa_subject = '';
-    $qa_code = "Q" . date("ymd") . sprintf("%03d", rand(1, 999));
-    $sql = " INSERT INTO g5_quote SET 
+    // [보안] 중복 방지 헬퍼 함수 사용 (Race Condition 방지)
+    $qa_code = generate_unique_quote_code_short();
+    $sql = " INSERT INTO g5_quote SET
                 qa_status = 'draft',
                 qa_code = '$qa_code',
                 qa_subject = '$qa_subject',
@@ -60,8 +78,9 @@ if ($w == 'ajax_create_quote') {
     exit;
 }
 
-// 3. AJAX Save Header (실시간 저장)
+// 3. AJAX Save Header (실시간 저장) - Admin Only
 if ($w == 'ajax_save_header') {
+    if (!$is_admin) deny_ajax_no_admin();
     $qa_id = (int) $_POST['qa_id'];
     if (!$qa_id) {
         echo json_encode(['success' => false]);
@@ -152,8 +171,9 @@ if ($w == 'ajax_save_header') {
     exit;
 }
 
-// 4. AJAX Search Customer
+// 4. AJAX Search Customer - Admin Only
 if ($w == 'ajax_search') {
+    if (!$is_admin) deny_ajax_no_admin();
     $keyword = isset($_GET['keyword']) ? trim($_GET['keyword']) : '';
     $customers = [];
     if (mb_strlen($keyword) >= 2) { // 2자 이상일 때만 검색
@@ -174,11 +194,14 @@ if ($w == 'ajax_search') {
     exit;
 }
 
-// 5. AJAX Delete Quote (작성 취소/삭제)
+// 5. AJAX Delete Quote (작성 취소/삭제) - Admin Only
 if ($w == 'ajax_delete_quote') {
     // Clear any previous output buffer to ensure clean JSON
     if (ob_get_length())
         ob_clean();
+
+    // [보안] 관리자 권한 체크 (최우선)
+    if (!$is_admin) deny_ajax_no_admin();
 
     $qa_id = isset($_POST['qa_id']) ? (int) $_POST['qa_id'] : 0;
     $delete_customer = isset($_POST['delete_customer']) ? (int) $_POST['delete_customer'] : 0;
@@ -187,12 +210,6 @@ if ($w == 'ajax_delete_quote') {
     // If we have a qa_id, even if the quote record is missing, we must clean up g5_work and measures.
     if (!$qa_id) {
         echo json_encode(['success' => false, 'message' => 'Invalid ID']);
-        exit;
-    }
-
-    // Check permissions (Admin only)
-    if (!$is_admin) {
-        echo json_encode(['success' => false, 'message' => 'Permission denied']);
         exit;
     }
 
@@ -239,8 +256,9 @@ if ($w == 'ajax_delete_quote') {
     exit;
 }
 
-// 6. AJAX List Loading (Month/Year Filter)
+// 6. AJAX List Loading (Month/Year Filter) - Admin Only
 if ($w == 'ajax_list') {
+    if (!$is_admin) deny_ajax_no_admin();
     header('Content-Type: application/json; charset=utf-8');
 
     $sql_search = " where 1 ";

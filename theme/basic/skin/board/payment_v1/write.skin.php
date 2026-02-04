@@ -70,7 +70,11 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
         </div>
 
         <div class="flex justify-center gap-4 pt-6 border-t">
-            <a href="<?php echo get_pretty_url($bo_table); ?>"
+            <?php
+            // [Admin Link] 관리자일 경우 목록 링크를 래퍼 페이지로 설정
+            $cancel_href = ($is_admin && $bo_table == 'payment') ? G5_THEME_URL . '/admin_payment.php?bo_table=payment' : get_pretty_url($bo_table);
+            ?>
+            <a href="<?php echo $cancel_href; ?>"
                 class="px-8 py-4 bg-gray-200 text-gray-700 rounded-xl font-bold">취소</a>
             <button type="submit" id="btn_submit" accesskey="s"
                 class="px-12 py-4 bg-gray-900 text-white rounded-xl font-bold hover:bg-black">생성 완료</button>

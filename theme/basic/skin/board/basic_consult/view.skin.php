@@ -15,7 +15,7 @@ $linked_quote = sql_fetch(" SELECT * FROM g5_quote WHERE wr_id = '{$view['wr_id'
 // 데이터 매핑 (Linked Quote 우선, 없으면 Board View 데이터)
 $subject = $linked_quote ? $linked_quote['qa_subject'] : $view['wr_subject'];
 $name = $linked_quote ? $linked_quote['qa_client_name'] : $view['wr_name'];
-$phone = $linked_quote ? $linked_quote['qa_client_hp'] : $view['wr_phone'];
+$phone = $linked_quote ? $linked_quote['qa_client_hp'] : $view['wr_1'];
 $email = $linked_quote ? $linked_quote['qa_client_email'] : $view['wr_email'];
 $addr1 = $linked_quote ? $linked_quote['qa_client_addr'] : $view['wr_6'];
 $addr2 = $linked_quote ? $linked_quote['qa_client_addr2'] : $view['wr_7'];
@@ -25,11 +25,16 @@ $company = $linked_quote ? $linked_quote['qa_tax_company_name'] : $view['wr_name
 $code = $linked_quote ? $linked_quote['qa_code'] : '';
 
 // 게시판 추가 정보 매핑 (Board View 데이터)
-$sign_type = isset($view['wr_1']) ? $view['wr_1'] : '';
+$sign_type = isset($view['wr_8']) ? $view['wr_8'] : '';
 $design_file = isset($view['wr_2']) ? $view['wr_2'] : '';
 $budget = isset($view['wr_3']) ? $view['wr_3'] : '';
 $open_date = isset($view['wr_4']) ? $view['wr_4'] : '';
 
+// [Admin Wrapper Link Fix] 관리자 권한이면 목록 링크를 관리자 래퍼로 강제 변경
+// (상수 체크 대신 is_admin 체크 - 상세 페이지 직접 접근 시에도 동작하도록)
+if ($is_admin && $bo_table == 'consult') {
+    $list_href = G5_THEME_URL . '/admin_consult.php?bo_table=consult';
+}
 ?>
 
 <style>
@@ -54,7 +59,8 @@ $open_date = isset($view['wr_4']) ? $view['wr_4'] : '';
         <div class="flex flex-col">
             <h1 class="text-2xl font-extrabold text-gray-900 tracking-tight leading-none mb-1">견적 문의 상세</h1>
             <p class="text-gray-500 text-xs">게시판 ID: <?php echo $view['wr_id']; ?> | 작성일:
-                <?php echo $view['wr_datetime']; ?></p>
+                <?php echo $view['wr_datetime']; ?>
+            </p>
         </div>
         <div class="flex gap-2">
             <a href="<?php echo $list_href ?>"

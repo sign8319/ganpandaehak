@@ -37,11 +37,8 @@ if ($customer_id && !$qa_id) {
     
     if ($customer) {
         // Create new quote with customer info
-        $today_prefix = 'Q-' . date('Ymd') . '-';
-        $row = sql_fetch(" SELECT count(*) as cnt FROM g5_quote WHERE qa_code LIKE '{$today_prefix}%' ");
-        if (!$row) $row = ['cnt' => 0];
-        $seq = $row['cnt'] + 1;
-        $new_code = $today_prefix . sprintf('%03d', $seq);
+        // [보안] 중복 방지 헬퍼 함수 사용 (Race Condition 방지)
+        $new_code = generate_unique_quote_code();
         
         $sql = " INSERT INTO g5_quote SET 
                  qa_code = '$new_code', 
@@ -183,13 +180,10 @@ if ($w == 'save') {
 
     if (!$qa_id) {
         // Create new quote
-        $today_prefix = 'Q-' . date('Ymd') . '-';
-        $row = sql_fetch(" SELECT count(*) as cnt FROM g5_quote WHERE qa_code LIKE '{$today_prefix}%' ");
-        if (!$row) $row = ['cnt' => 0]; // Safety
-        $seq = $row['cnt'] + 1;
-        $new_code = $today_prefix . sprintf('%03d', $seq);
+        // [보안] 중복 방지 헬퍼 함수 사용 (Race Condition 방지)
+        $new_code = generate_unique_quote_code();
 
-        $sql = " INSERT INTO g5_quote SET 
+        $sql = " INSERT INTO g5_quote SET
                  qa_code = '$new_code', 
                  qa_datetime = '" . G5_TIME_YMDHIS . "',
                  qa_price_supply = 0,
@@ -305,16 +299,52 @@ if ($w == 'save') {
 
             // Upload?
             if (isset($_FILES[$f_name]['name'][$i]) && $_FILES[$f_name]['name'][$i]) {
+                // [보안] 1) 확장자 화이트리스트 검사
                 $ext = strtolower(pathinfo($_FILES[$f_name]['name'][$i], PATHINFO_EXTENSION));
-                if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
-                    $new_name = 'measure_' . date('YmdHis') . "_" . $i . "_" . $m . "_" . rand(1000, 9999) . "." . $ext;
-                    if (move_uploaded_file($_FILES[$f_name]['tmp_name'][$i], $upload_dir . '/' . $new_name)) {
-                        // Delete old if replaced
-                        if ($saved_file && $saved_file != $new_name && file_exists($upload_dir . '/' . $saved_file)) {
-                            @unlink($upload_dir . '/' . $saved_file);
-                        }
-                        $saved_file = $new_name;
+                $allowed_ext = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                if (!in_array($ext, $allowed_ext)) {
+                    error_log("[UPLOAD_SECURITY] admin_quote_step1.php - Blocked extension: {$ext}, file: {$_FILES[$f_name]['name'][$i]}");
+                    continue; // 허용되지 않은 확장자는 건너뜀
+                }
+
+                // [보안] 2) MIME 타입 검증 (finfo_file 사용) - 기존 validate_image_upload() 활용
+                $file_to_validate = [
+                    'tmp_name' => $_FILES[$f_name]['tmp_name'][$i],
+                    'error' => $_FILES[$f_name]['error'][$i],
+                    'size' => $_FILES[$f_name]['size'][$i]
+                ];
+                $validation = validate_image_upload($file_to_validate);
+                if (!$validation['success']) {
+                    error_log("[UPLOAD_SECURITY] admin_quote_step1.php - MIME validation failed: {$validation['message']}, file: {$_FILES[$f_name]['name'][$i]}");
+                    continue; // MIME 검증 실패 시 건너뜀
+                }
+
+                // [보안] 3) 확장자-MIME 불일치 검사 (위장 파일 방지)
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $detected_mime = finfo_file($finfo, $_FILES[$f_name]['tmp_name'][$i]);
+                finfo_close($finfo);
+                $mime_ext_map = [
+                    'image/jpeg' => ['jpg', 'jpeg'],
+                    'image/png' => ['png'],
+                    'image/gif' => ['gif'],
+                    'image/webp' => ['webp']
+                ];
+                $valid_ext_for_mime = $mime_ext_map[$detected_mime] ?? [];
+                if (!in_array($ext, $valid_ext_for_mime)) {
+                    error_log("[UPLOAD_SECURITY] admin_quote_step1.php - MIME/ext mismatch: mime={$detected_mime}, ext={$ext}, file: {$_FILES[$f_name]['name'][$i]}");
+                    continue; // MIME과 확장자 불일치 시 건너뜀
+                }
+
+                // 검증 통과 - 파일 저장
+                $new_name = 'measure_' . date('YmdHis') . "_" . $i . "_" . $m . "_" . rand(1000, 9999) . "." . $ext;
+                if (move_uploaded_file($_FILES[$f_name]['tmp_name'][$i], $upload_dir . '/' . $new_name)) {
+                    // Delete old if replaced
+                    if ($saved_file && $saved_file != $new_name && file_exists($upload_dir . '/' . $saved_file)) {
+                        @unlink($upload_dir . '/' . $saved_file);
                     }
+                    $saved_file = $new_name;
+                } else {
+                    error_log("[UPLOAD_ERROR] admin_quote_step1.php - move_uploaded_file failed: {$_FILES[$f_name]['name'][$i]}");
                 }
             }
             $img_files[$m] = $saved_file;
@@ -579,7 +609,7 @@ include_once(G5_THEME_PATH . '/head.php');
                             </h3>
                             <textarea name="qa_memo"
                                 class="w-full h-32 p-3 border border-gray-200 rounded-lg bg-yellow-50/50 resize-none text-sm placeholder-gray-400 focus:bg-white focus:border-orange-500 transition"
-                                placeholder="관리자 전용 메모입니다."><?php echo e($quote['qa_memo']); ?></textarea>
+                                placeholder="관리자 전용 메모입니다."><?php echo e($quote['qa_memo'] ?? ''); ?></textarea>
                         </div>
                         <div>
                             <h3 class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
@@ -587,7 +617,7 @@ include_once(G5_THEME_PATH . '/head.php');
                             </h3>
                             <textarea name="qa_memo_user"
                                 class="w-full h-32 p-3 border border-gray-200 rounded-lg resize-none text-sm placeholder-gray-400 focus:border-orange-500 transition"
-                                placeholder="시공 일정, 입금 계좌 등 고객에게 알릴 내용을 입력하세요."><?php echo e($quote['qa_memo_user']); ?></textarea>
+                                placeholder="시공 일정, 입금 계좌 등 고객에게 알릴 내용을 입력하세요."><?php echo e($quote['qa_memo_user'] ?? ''); ?></textarea>
                         </div>
                     </div>
                 </div>

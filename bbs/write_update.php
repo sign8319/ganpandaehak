@@ -18,6 +18,15 @@ exit; // Stop execution here to verify data
 // Disable Strict Mode to prevent "Field doesn't have a default value" errors
 sql_query("SET SESSION sql_mode = ''");
 
+// [TEMP DEBUG] POST 체크 - 테스트 후 삭제
+$debug_log = date('Y-m-d H:i:s') . " POST DEBUG\n";
+$debug_log .= "wr_1: " . (isset($_POST['wr_1']) ? $_POST['wr_1'] : 'NOT SET') . "\n";
+$debug_log .= "wr_8: " . (isset($_POST['wr_8']) ? $_POST['wr_8'] : 'NOT SET') . "\n";
+$debug_log .= "REQUEST_URI: " . ($_SERVER['REQUEST_URI'] ?? '') . "\n";
+$debug_log .= "---------------------------------\n";
+@file_put_contents(G5_DATA_PATH . '/post_debug.log', $debug_log, FILE_APPEND);
+
+
 // 토큰체크
 check_write_token($bo_table);
 

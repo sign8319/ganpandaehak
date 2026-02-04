@@ -1,13 +1,20 @@
 <?php
-if (!defined('_GNUBOARD_')) exit;
+if (!defined('_GNUBOARD_'))
+    exit;
 add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">', 0);
+
+// [Admin Wrapper] 관리자 래퍼 내부일 경우 항목 링크를 admin_payment.php로 재정의
+$use_admin_wrapper_links = defined('IN_ADMIN_WRAPPER') && IN_ADMIN_WRAPPER && $bo_table == 'payment';
 ?>
 
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-    body { font-family: 'Pretendard', sans-serif; }
+
+    body {
+        font-family: 'Pretendard', sans-serif;
+    }
 </style>
 
 <div class="w-full max-w-6xl mx-auto px-4 py-16">
@@ -32,9 +39,17 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
                 for ($i = 0; $i < count($list); $i++) {
                     // 금액 정보 가져오기 (wr_1)
                     $price = $list[$i]['wr_1'];
-                    if(!$price) $price = "0";
-                ?>
-                    <tr class="hover:bg-gray-50 transition-colors cursor-pointer" onclick="location.href='<?php echo $list[$i]['href'] ?>'">
+                    if (!$price)
+                        $price = "0";
+
+                    // [Admin Link] 관리자 래퍼일 경우 상세 링크를 admin_payment.php로 변경
+                    $item_href = $list[$i]['href'];
+                    if ($use_admin_wrapper_links) {
+                        $item_href = G5_THEME_URL . '/admin_payment.php?bo_table=payment&wr_id=' . $list[$i]['wr_id'];
+                    }
+                    ?>
+                    <tr class="hover:bg-gray-50 transition-colors cursor-pointer"
+                        onclick="location.href='<?php echo $item_href ?>'">
                         <td class="hidden md:table-cell py-5 px-6 text-center text-gray-500 text-sm">
                             <?php echo $list[$i]['num'] ?>
                         </td>
@@ -69,7 +84,8 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
 
     <?php if ($is_admin) { ?>
         <div class="mt-8 text-right">
-            <a href="<?php echo $write_href ?>" class="inline-block px-6 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-colors">
+            <a href="<?php echo $write_href ?>"
+                class="inline-block px-6 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-colors">
                 + 결제창 생성
             </a>
         </div>

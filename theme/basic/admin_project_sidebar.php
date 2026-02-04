@@ -14,6 +14,7 @@ $bo_table = isset($board['bo_table']) ? $board['bo_table'] : (isset($_REQUEST['b
     /* [Admin Specific] 모바일에서 사이트 기본 메뉴(GNB) 완전 비활성화 */
     /* admin-page 클래스는 하단 JS에서 body에 주입됨 */
     @media (max-width: 1024px) {
+
         body.admin-page #gnb_open,
         body.admin-page #gnb,
         body.admin-page #user_btn,
@@ -22,7 +23,7 @@ $bo_table = isset($board['bo_table']) ? $board['bo_table'] : (isset($_REQUEST['b
         body.admin-page #hd {
             display: none !important;
         }
-        
+
         /* 관리자 페이지의 메인 컨텐츠 여백 제거 (헤더가 사라지므로) */
         body.admin-page #wrapper {
             padding-top: 0 !important;
@@ -88,7 +89,7 @@ $bo_table = isset($board['bo_table']) ? $board['bo_table'] : (isset($_REQUEST['b
 
             <!-- Estimate Request -->
             <?php $is_consult = ($bo_table == 'consult'); ?>
-            <a href="<?php echo G5_BBS_URL; ?>/board.php?bo_table=consult"
+            <a href="<?php echo G5_THEME_URL; ?>/admin_consult.php?bo_table=consult"
                 class="<?php echo get_sidebar_active_class($is_consult); ?> flex items-center gap-3 px-4 py-3 text-sm font-bold border rounded-xl transition-colors group">
                 <i class="fas fa-file-invoice w-5 text-center group-hover:text-orange-500 transition-colors"></i>
                 견적신청
@@ -96,7 +97,7 @@ $bo_table = isset($board['bo_table']) ? $board['bo_table'] : (isset($_REQUEST['b
 
             <!-- Payment Center -->
             <?php $is_payment = ($bo_table == 'payment'); ?>
-            <a href="<?php echo G5_BBS_URL; ?>/board.php?bo_table=payment"
+            <a href="<?php echo G5_THEME_URL; ?>/admin_payment.php?bo_table=payment"
                 class="<?php echo get_sidebar_active_class($is_payment); ?> flex items-center gap-3 px-4 py-3 text-sm font-bold border rounded-xl transition-colors group">
                 <i class="fas fa-credit-card w-5 text-center group-hover:text-orange-500 transition-colors"></i>
                 결제센터
@@ -168,7 +169,7 @@ $bo_table = isset($board['bo_table']) ? $board['bo_table'] : (isset($_REQUEST['b
     });
 
     // [Admin Specific] 관리자 페이지 식별 클래스 주입
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function  () {
         document.body.classList.add('admin-page');
     });
 </script>

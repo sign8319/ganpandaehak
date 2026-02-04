@@ -146,4 +146,79 @@ if ($w == '' && $is_member) { // 새 글 작성이고, 로그인한 회원인 �
 
 }
 
-?>
+// -----------------------------------------------------------------------------
+// [SMS] 새 글 등록 시 관리자에게 SMS 알림 발송
+// -----------------------------------------------------------------------------
+if ($w == '' && $config['cf_sms_use'] == 'icode') {
+
+    // (선택) 블록 진입 확인용
+    @file_put_contents(
+        G5_DATA_PATH . '/log/consult_sms.step',
+        date('c') . " ENTER w={$w} wr_id={$wr_id}\n",
+        FILE_APPEND
+    );
+
+    // 디버그 로그 강제 출력
+    ini_set('log_errors', '1');
+    ini_set('error_log', G5_DATA_PATH . '/log/consult_sms.log');
+    error_log('[consult SMS] entered. w=' . $w . ' wr_id=' . $wr_id);
+
+    try {
+        include_once(G5_LIB_PATH . '/icode.sms.lib.php');
+
+        $sms_recv_number = preg_replace('/[^0-9]/', '', '01097979768'); // 수신(관리자)
+        $sms_send_number = preg_replace('/[^0-9]/', '', '16008319'); // 발신
+        $sms_message = "[새 문의]\nhttps://간판대학.com/c.php?id={$wr_id}";
+
+        if (!$sms_recv_number || !$sms_send_number) {
+            error_log('[consult SMS] Skip: recv=' . ($sms_recv_number ?: 'empty') . ', send=' . ($sms_send_number ?: 'empty'));
+
+            @file_put_contents(
+                G5_DATA_PATH . '/log/consult_sms.step',
+                date('c') . " SKIP empty number\n",
+                FILE_APPEND
+            );
+
+        } else {
+
+            $SMS = new SMS;
+
+            // iCode 서버 연결
+            $SMS->SMS_con(
+                $config['cf_icode_server_ip'],
+                $config['cf_icode_id'],
+                $config['cf_icode_pw'],
+                $config['cf_icode_server_port']
+            );
+
+            // 메시지 등록
+            $SMS->Add(
+                $sms_recv_number,
+                $sms_send_number,
+                $config['cf_icode_id'],
+                iconv('utf-8', 'euc-kr//IGNORE', $sms_message),
+                ''
+            );
+
+            // 실제 전송 + 결과 로그 (여기서만 Send 호출 1번!)
+            $send_result = $SMS->Send();
+
+            @file_put_contents(
+                G5_DATA_PATH . '/log/consult_sms.step',
+                date('c') . " SEND_RESULT: " . print_r($send_result, true) . "\n",
+                FILE_APPEND
+            );
+
+            error_log('[consult SMS] SEND_RESULT: ' . print_r($send_result, true));
+        }
+
+    } catch (Throwable $e) {
+        error_log('[consult SMS] EXCEPTION: ' . $e->getMessage());
+
+        @file_put_contents(
+            G5_DATA_PATH . '/log/consult_sms.step',
+            date('c') . " EXCEPTION: " . $e->getMessage() . "\n",
+            FILE_APPEND
+        );
+    }
+}

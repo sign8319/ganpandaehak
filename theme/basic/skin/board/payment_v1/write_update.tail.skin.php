@@ -2,6 +2,11 @@
 if (!defined('_GNUBOARD_'))
     exit;
 
+// [ADMIN] 관리자가 작성/수정 시 관리자 페이지로 리다이렉트
+if ($is_admin) {
+    goto_url(G5_THEME_URL . "/admin_payment.php?bo_table=" . $bo_table . "&wr_id=" . $wr_id . $qstr);
+}
+
 // write_update.tail.skin.php
 // This file is included at the end of bbs/write_update.php
 

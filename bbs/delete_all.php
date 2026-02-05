@@ -161,4 +161,10 @@ delete_cache_latest($bo_table);
 
 run_event('bbs_delete_all', $tmp_array, $board);
 
-goto_url(short_url_clean(G5_HTTP_BBS_URL.'/board.php?bo_table='.$bo_table.'&amp;page='.$page.$qstr));
+// [FIX] POST url 값이 있으면 해당 URL로 redirect (admin wrapper 유지)
+$return_url = isset($_POST['url']) ? trim($_POST['url']) : '';
+if ($return_url) {
+    goto_url($return_url);
+} else {
+    goto_url(short_url_clean(G5_HTTP_BBS_URL.'/board.php?bo_table='.$bo_table.'&amp;page='.$page.$qstr));
+}

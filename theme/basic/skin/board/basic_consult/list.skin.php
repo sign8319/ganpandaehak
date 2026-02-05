@@ -46,6 +46,7 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
         <input type="hidden" name="sod" value="<?php echo $sod ?>">
         <input type="hidden" name="page" value="<?php echo $page ?>">
         <input type="hidden" name="sw" value="">
+        <input type="hidden" name="url" value="<?php echo htmlspecialchars($_SERVER['REQUEST_URI'], ENT_QUOTES); ?>">
 
         <?php if ($is_admin == 'super' || $is_auth) { ?>
             <!-- 게시판 페이지 정보 및 버튼 시작 { -->

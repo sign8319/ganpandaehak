@@ -23,3 +23,5 @@ Thumbs.db
 
 # 6. 클라우드 임시 파일 (추가됨)
 .tmp.driveupload/
+
+/data/sms_digest_token.php

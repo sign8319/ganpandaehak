@@ -2,6 +2,17 @@
 if (!defined("_GNUBOARD_"))
     exit;
 
+// [Fix] sql_affected_rows() 호환성 함수 정의 (GNUBoard5에 미정의)
+if (!function_exists('sql_affected_rows')) {
+    function sql_affected_rows() {
+        global $g5;
+        if (isset($g5['connect_db']) && $g5['connect_db']) {
+            return mysqli_affected_rows($g5['connect_db']);
+        }
+        return 0;
+    }
+}
+
 // [7단계] 상담신청(글쓰기) 완료 후 quotes 테이블에도 데이터 저장
 // 게시판: g5_write_consult -> 마이페이지: quotes 테이블 연동
 
@@ -147,78 +158,79 @@ if ($w == '' && $is_member) { // 새 글 작성이고, 로그인한 회원인 �
 }
 
 // -----------------------------------------------------------------------------
-// [SMS] 새 글 등록 시 관리자에게 SMS 알림 발송
+// [SMS] 새 글 등록 시 관리자에게 SMS 알림 발송 (업무시간 분기 + 중복 방지)
 // -----------------------------------------------------------------------------
 if ($w == '' && $config['cf_sms_use'] == 'icode') {
 
-    // (선택) 블록 진입 확인용
-    @file_put_contents(
-        G5_DATA_PATH . '/log/consult_sms.step',
-        date('c') . " ENTER w={$w} wr_id={$wr_id}\n",
-        FILE_APPEND
-    );
+    $sms_bo_table = 'consult';
+    $sms_wr_id = (int)$wr_id;
+    $sms_event_type = 'quote_new';
 
-    // 디버그 로그 강제 출력
-    ini_set('log_errors', '1');
-    ini_set('error_log', G5_DATA_PATH . '/log/consult_sms.log');
-    error_log('[consult SMS] entered. w=' . $w . ' wr_id=' . $wr_id);
+    // 업무시간 체크 (08:00 ~ 22:00)
+    $current_hour = (int)date('H');
+    $is_business_hour = ($current_hour >= 8 && $current_hour < 22);
 
-    try {
-        include_once(G5_LIB_PATH . '/icode.sms.lib.php');
+    $sms_recv_number = preg_replace('/[^0-9]/', '', '01097979768');
+    $sms_send_number = preg_replace('/[^0-9]/', '', '16008319');
 
-        $sms_recv_number = preg_replace('/[^0-9]/', '', '01097979768'); // 수신(관리자)
-        $sms_send_number = preg_replace('/[^0-9]/', '', '16008319'); // 발신
-        $sms_message = "[새 문의]\nhttps://간판대학.com/c.php?id={$wr_id}";
+    if ($is_business_hour) {
+        // =====================================================================
+        // [업무시간] 즉시 발송 - g5_sms_sent로 중복 방지
+        // =====================================================================
+        $sql_sent = "INSERT IGNORE INTO g5_sms_sent
+                     SET bo_table = '{$sms_bo_table}',
+                         wr_id = {$sms_wr_id},
+                         sent_type = '{$sms_event_type}',
+                         sent_at = NOW()";
+        sql_query($sql_sent, false);
 
-        if (!$sms_recv_number || !$sms_send_number) {
-            error_log('[consult SMS] Skip: recv=' . ($sms_recv_number ?: 'empty') . ', send=' . ($sms_send_number ?: 'empty'));
+        // INSERT IGNORE 성공 시에만 SMS 발송 (affected_rows == 1)
+        if (sql_affected_rows() == 1) {
+            try {
+                include_once(G5_LIB_PATH . '/icode.sms.lib.php');
 
-            @file_put_contents(
-                G5_DATA_PATH . '/log/consult_sms.step',
-                date('c') . " SKIP empty number\n",
-                FILE_APPEND
-            );
+                $sms_message = "[새 문의]\nhttps://간판대학.com/c.php?id={$sms_wr_id}";
 
+                $SMS = new SMS;
+                $SMS->SMS_con(
+                    $config['cf_icode_server_ip'],
+                    $config['cf_icode_id'],
+                    $config['cf_icode_pw'],
+                    $config['cf_icode_server_port']
+                );
+                $SMS->Add(
+                    $sms_recv_number,
+                    $sms_send_number,
+                    $config['cf_icode_id'],
+                    iconv('utf-8', 'euc-kr//IGNORE', $sms_message),
+                    ''
+                );
+                $send_result = $SMS->Send();
+
+                error_log('[consult SMS] 즉시발송 wr_id=' . $sms_wr_id . ' result=' . print_r($send_result, true));
+
+            } catch (Throwable $e) {
+                error_log('[consult SMS] EXCEPTION: ' . $e->getMessage());
+            }
         } else {
-
-            $SMS = new SMS;
-
-            // iCode 서버 연결
-            $SMS->SMS_con(
-                $config['cf_icode_server_ip'],
-                $config['cf_icode_id'],
-                $config['cf_icode_pw'],
-                $config['cf_icode_server_port']
-            );
-
-            // 메시지 등록
-            $SMS->Add(
-                $sms_recv_number,
-                $sms_send_number,
-                $config['cf_icode_id'],
-                iconv('utf-8', 'euc-kr//IGNORE', $sms_message),
-                ''
-            );
-
-            // 실제 전송 + 결과 로그 (여기서만 Send 호출 1번!)
-            $send_result = $SMS->Send();
-
-            @file_put_contents(
-                G5_DATA_PATH . '/log/consult_sms.step',
-                date('c') . " SEND_RESULT: " . print_r($send_result, true) . "\n",
-                FILE_APPEND
-            );
-
-            error_log('[consult SMS] SEND_RESULT: ' . print_r($send_result, true));
+            error_log('[consult SMS] 중복방지: wr_id=' . $sms_wr_id . ' 이미 발송됨');
         }
 
-    } catch (Throwable $e) {
-        error_log('[consult SMS] EXCEPTION: ' . $e->getMessage());
+    } else {
+        // =====================================================================
+        // [야간] 큐에 적재 - g5_sms_queue
+        // =====================================================================
+        $sql_queue = "INSERT IGNORE INTO g5_sms_queue
+                      SET bo_table = '{$sms_bo_table}',
+                          wr_id = {$sms_wr_id},
+                          event_type = '{$sms_event_type}',
+                          created_at = NOW()";
+        sql_query($sql_queue, false);
 
-        @file_put_contents(
-            G5_DATA_PATH . '/log/consult_sms.step',
-            date('c') . " EXCEPTION: " . $e->getMessage() . "\n",
-            FILE_APPEND
-        );
+        if (sql_affected_rows() == 1) {
+            error_log('[consult SMS] 야간큐 적재: wr_id=' . $sms_wr_id);
+        } else {
+            error_log('[consult SMS] 야간큐 중복: wr_id=' . $sms_wr_id . ' 이미 적재됨');
+        }
     }
 }

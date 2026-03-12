@@ -2,6 +2,15 @@
 if (!defined('_GNUBOARD_'))
     exit;
 add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">', 0);
+if (!isset($write) || !is_array($write)) {
+    $write = array();
+}
+for ($i = 1; $i <= 10; $i++) {
+    $key = 'wr_' . $i;
+    if (!isset($write[$key])) {
+        $write[$key] = '';
+    }
+}
 ?>
 
 <!-- Cropper.js -->
@@ -589,7 +598,7 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
 
                     <div class="mt-3 pt-3 border-t border-gray-200">
                         <label class="flex items-center gap-2 cursor-pointer select-none">
-                            <input type="checkbox" name="wr_3" value="1" <?php echo ($write['wr_3'] == '1') ? 'checked' : ''; ?> class="rounded border-gray-300 text-gray-600 focus:ring-gray-500">
+                            <input type="checkbox" name="wr_3" value="1" <?php echo (($write['wr_3'] ?? '') == '1') ? 'checked' : ''; ?> class="rounded border-gray-300 text-gray-600 focus:ring-gray-500">
                             <span class="text-gray-600 text-sm">게시물 등록 시, 본문의 <strong>모든 이미지</strong>에 워터마크 자동 일괄
                                 적용</span>
                         </label>
@@ -602,14 +611,14 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label for="wr_1" class="block text-gray-800 text-base font-bold mb-2">위치</label>
-                    <input type="text" name="wr_1" value="<?php echo isset($write['wr_1']) ? $write['wr_1'] : ''; ?>"
+                    <input type="text" name="wr_1" value="<?php echo htmlspecialchars(($write['wr_1'] ?? ''), ENT_QUOTES); ?>"
                         id="wr_1"
                         class="w-full border-2 border-gray-300 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-200 p-3 text-base"
                         placeholder="예: 서울 강남구">
                 </div>
                 <div>
                     <label for="wr_2" class="block text-gray-800 text-base font-bold mb-2">예상 견적 (만원)</label>
-                    <input type="text" name="wr_2" value="<?php echo isset($write['wr_2']) ? $write['wr_2'] : ''; ?>"
+                    <input type="text" name="wr_2" value="<?php echo htmlspecialchars(($write['wr_2'] ?? ''), ENT_QUOTES); ?>"
                         id="wr_2"
                         class="w-full border-2 border-gray-300 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-200 p-3 text-base"
                         placeholder="예: 500">
@@ -761,7 +770,7 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
                     <div class="mb-6">
                         <label
                             class="flex items-center space-x-3 cursor-pointer p-3 bg-white rounded-lg border hover:bg-orange-50 transition-colors">
-                            <input type="checkbox" name="wr_7" value="1" <?php echo ($write['wr_7'] == '1') ? 'checked' : ''; ?> class="w-6 h-6 text-orange-500 rounded focus:ring-orange-500">
+                            <input type="checkbox" name="wr_7" value="1" <?php echo (($write['wr_7'] ?? '') == '1') ? 'checked' : ''; ?> class="w-6 h-6 text-orange-500 rounded focus:ring-orange-500">
                             <div>
                                 <span class="text-gray-900 font-bold text-lg">워터마크 적용하기</span>
                                 <p class="text-sm text-gray-500">체크하시면 본문에 등록된 이미지 위에 워터마크가 표시됩니다.</p>
@@ -773,7 +782,7 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
                         <div>
                             <label class="block text-gray-800 font-bold mb-2">워터마크 이미지 URL</label>
                             <input type="text" name="wr_8" id="wr_8_input"
-                                value="<?php echo isset($write['wr_8']) ? $write['wr_8'] : ''; ?>"
+                                value="<?php echo htmlspecialchars(($write['wr_8'] ?? ''), ENT_QUOTES); ?>"
                                 class="w-full border-2 border-gray-300 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-200 p-3"
                                 placeholder="예: https://site.com/logo.png" oninput="updateWatermarkPreview(this.value)">
                             <p class="text-xs text-gray-500 mt-2">※ 이미지 자산 메뉴에서 링크를 복사하여 붙여넣으세요. (투명 PNG 권장)</p>
@@ -791,9 +800,9 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
                             <label class="block text-gray-800 font-bold mb-2">워터마크 위치</label>
                             <select name="wr_6"
                                 class="w-full border-2 border-gray-300 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-200 p-3 bg-white">
-                                <option value="center" <?php echo ($write['wr_6'] == 'center' || !$write['wr_6']) ? 'selected' : ''; ?>>중앙 (Center)</option>
-                                <option value="bottom-right" <?php echo ($write['wr_6'] == 'bottom-right') ? 'selected' : ''; ?>>우측 하단 (Bottom Right)</option>
-                                <option value="top-left" <?php echo ($write['wr_6'] == 'top-left') ? 'selected' : ''; ?>>
+                                <option value="center" <?php echo ((($write['wr_6'] ?? '') == 'center') || (($write['wr_6'] ?? '') == '')) ? 'selected' : ''; ?>>중앙 (Center)</option>
+                                <option value="bottom-right" <?php echo (($write['wr_6'] ?? '') == 'bottom-right') ? 'selected' : ''; ?>>우측 하단 (Bottom Right)</option>
+                                <option value="top-left" <?php echo (($write['wr_6'] ?? '') == 'top-left') ? 'selected' : ''; ?>>
                                     좌측 상단 (Top Left)</option>
                             </select>
                         </div>
@@ -805,17 +814,17 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
             <div class="detail-display-options">
                 <h4>📺 상세 페이지 표시 방식</h4>
                 <div class="radio-group">
-                    <label class="radio-label <?php echo ($write['wr_9'] == 'before') ? 'checked' : ''; ?>">
-                        <input type="radio" name="wr_9" value="before" <?php echo ($write['wr_9'] == 'before') ? 'checked' : ''; ?>>
+                    <label class="radio-label <?php echo (($write['wr_9'] ?? '') == 'before') ? 'checked' : ''; ?>">
+                        <input type="radio" name="wr_9" value="before" <?php echo (($write['wr_9'] ?? '') == 'before') ? 'checked' : ''; ?>>
                         <span>Before만 표시</span>
                     </label>
                     <label
-                        class="radio-label <?php echo ($write['wr_9'] == 'after' || !$write['wr_9']) ? 'checked' : ''; ?>">
-                        <input type="radio" name="wr_9" value="after" <?php echo ($write['wr_9'] == 'after' || !$write['wr_9']) ? 'checked' : ''; ?>>
+                        class="radio-label <?php echo ((($write['wr_9'] ?? '') == 'after') || (($write['wr_9'] ?? '') == '')) ? 'checked' : ''; ?>">
+                        <input type="radio" name="wr_9" value="after" <?php echo ((($write['wr_9'] ?? '') == 'after') || (($write['wr_9'] ?? '') == '')) ? 'checked' : ''; ?>>
                         <span>After만 표시 (추천)</span>
                     </label>
-                    <label class="radio-label <?php echo ($write['wr_9'] == 'auto') ? 'checked' : ''; ?>">
-                        <input type="radio" name="wr_9" value="auto" <?php echo ($write['wr_9'] == 'auto') ? 'checked' : ''; ?>>
+                    <label class="radio-label <?php echo (($write['wr_9'] ?? '') == 'auto') ? 'checked' : ''; ?>">
+                        <input type="radio" name="wr_9" value="auto" <?php echo (($write['wr_9'] ?? '') == 'auto') ? 'checked' : ''; ?>>
                         <span>자동 전환 (2.5초)</span>
                     </label>
                 </div>
@@ -882,7 +891,7 @@ add_stylesheet('<link rel="stylesheet" href="' . $board_skin_url . '/style.css">
     $(function () {
         <?php
         // wr_10 (탭 상태) 복구
-        $current_tab = $write['wr_10'] ? $write['wr_10'] : 'fixed';
+        $current_tab = ($write['wr_10'] ?? '') ? ($write['wr_10'] ?? '') : 'fixed';
         echo "switchTab('{$current_tab}');";
 
         // 파일 존재 여부 확인 및 JS로 전달

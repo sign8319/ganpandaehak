@@ -1,27 +1,65 @@
-# 1. DB 접속 정보 및 백업 파일
+# editor / local deploy
+.vscode/
+!.vscode/README.md
+
+# secrets / config
+.env
 dbconfig.php
-*.sql
-*.bak
-*.bak2
+/data/sms_digest_token.php
 
-# 2. 외부 라이브러리 폴더
-vendor/
-node_modules/
+# logs / debug
+*.log
+data/*.log
+data/*debug*.log
+data/debug_*.log
+data/migration_*.log
+data/skin_debug.log
+data/quote_debug.log
+data/work_boxes_save_debug.log
 
-# 3. 사용자 업로드 데이터만 제외 (data 폴더 안만)
+# user uploaded / runtime files
 data/file/
 data/cache/
 data/session/
-_temp/
+data/quote/
+data/tmp/
+data/editor/
+data/member/
+data/log/
 
-# 4. 시스템 파일
+# local test files
+phpinfo.php
+adm/phpinfo.php
+c.php
+ftp_check_test.txt
+www/ftp_check_test.txt
+
+# patches / temp
+_*.patch
+*.patch
+_tmp_*.ps1
+.tmp.driveupload/
+_temp/
+임시파일/
+
+# dependencies
+node_modules/
+vendor/
+
+# backup
+*.bak
+*.bak2
+*.backup
+*.backup_*
+*.bak_*
+backup_*.php
+backup_*/
+**/backup_*/
+data/backup_*/
+
+# database dumps
+*.sql
+
+# system files
 .DS_Store
 Thumbs.db
-
-# 5. 백업 폴더 제외
-**/새 폴더/
-
-# 6. 클라우드 임시 파일 (추가됨)
-.tmp.driveupload/
-
-/data/sms_digest_token.php

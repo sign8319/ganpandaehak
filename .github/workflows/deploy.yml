@@ -14,48 +14,62 @@ permissions:
 
 jobs:
   deploy-test:
-    name: Upload deploy-test.txt
+    name: Probe Cafe24 FTP paths
     runs-on: ubuntu-latest
     if: ${{ inputs.test_only == true }}
     steps:
-      - name: Create test artifact
-        run: |
-          cat > deploy-test.txt <<'EOF'
-          Cafe24 FTP deployment test
-          Repository: ${{ github.repository }}
-          Ref: ${{ github.ref_name }}
-          Commit: ${{ github.sha }}
-          Run: ${{ github.run_id }}
-          EOF
-
       - name: Install FTP client
         run: |
           sudo apt-get update
           sudo apt-get install -y lftp
 
-      - name: Upload test file to Cafe24
+      - name: Probe FTP directories
         env:
           CAFE24_HOST: ${{ secrets.CAFE24_HOST }}
           CAFE24_USERNAME: ${{ secrets.CAFE24_USERNAME }}
           CAFE24_PASSWORD: ${{ secrets.CAFE24_PASSWORD }}
           CAFE24_PORT: ${{ secrets.CAFE24_PORT }}
-          CAFE24_PATH: ${{ secrets.CAFE24_PATH }}
         run: |
           test -n "$CAFE24_HOST"
           test -n "$CAFE24_USERNAME"
           test -n "$CAFE24_PASSWORD"
           test -n "$CAFE24_PORT"
-          test -n "$CAFE24_PATH"
 
+          echo "::group::FTP login directory"
           lftp -u "$CAFE24_USERNAME","$CAFE24_PASSWORD" -p "$CAFE24_PORT" "$CAFE24_HOST" <<EOF
           set ftp:passive-mode true
           set ftp:ssl-allow no
           set net:timeout 30
           set net:max-retries 2
-          cd "$CAFE24_PATH"
-          put deploy-test.txt -o deploy-test.txt
+          pwd
+          cls -la
           bye
           EOF
+          echo "::endgroup::"
+
+          for target_path in "/" "/www" "/WWW"; do
+            echo "::group::FTP path probe ${target_path}"
+            if lftp -u "$CAFE24_USERNAME","$CAFE24_PASSWORD" -p "$CAFE24_PORT" "$CAFE24_HOST" <<EOF
+          set ftp:passive-mode true
+          set ftp:ssl-allow no
+          set net:timeout 30
+          set net:max-retries 2
+          cd "${target_path}"
+          pwd
+          cls -la
+          bye
+          EOF
+            then
+              echo "FTP path probe succeeded: ${target_path}"
+            else
+              echo "FTP path probe failed: ${target_path}"
+            fi
+            echo "::endgroup::"
+          done
+
+      - name: Test upload is disabled
+        run: |
+          echo "deploy-test.txt upload is disabled until a writable Cafe24 FTP path is confirmed."
 
   full-deploy-disabled:
     name: Full deploy is disabled

@@ -1,29 +1,52 @@
-name: Cafe24 FTP Manual Test Deploy
+name: Cafe24 FTP Manual Deploy
 
 on:
   workflow_dispatch:
     inputs:
-      test_only:
-        description: "Upload only deploy-test.txt"
+      deploy_mode:
+        description: "Deployment mode"
         required: true
-        default: true
-        type: boolean
+        default: test_only
+        type: choice
+        options:
+          - test_only
+          - theme_basic_changed
 
 permissions:
   contents: read
 
 jobs:
-  deploy-test:
-    name: Probe Cafe24 FTP paths
+  deploy:
+    name: Cafe24 FTP deploy
     runs-on: ubuntu-latest
-    if: ${{ inputs.test_only == true }}
+    env:
+      CAFE24_PATH: /www
     steps:
+      - name: Block non-test deploy modes
+        if: ${{ inputs.deploy_mode != 'test_only' }}
+        run: |
+          echo "Only test_only mode is enabled. Real file deployment is intentionally disabled."
+          exit 1
+
       - name: Install FTP client
+        if: ${{ inputs.deploy_mode == 'test_only' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y lftp
 
-      - name: Probe FTP directories
+      - name: Create test artifact
+        if: ${{ inputs.deploy_mode == 'test_only' }}
+        run: |
+          cat > deploy-test.txt <<'EOF'
+          Cafe24 FTP deployment test
+          Repository: ${{ github.repository }}
+          Ref: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+          Run: ${{ github.run_id }}
+          EOF
+
+      - name: Upload deploy-test.txt
+        if: ${{ inputs.deploy_mode == 'test_only' }}
         env:
           CAFE24_HOST: ${{ secrets.CAFE24_HOST }}
           CAFE24_USERNAME: ${{ secrets.CAFE24_USERNAME }}
@@ -34,49 +57,14 @@ jobs:
           test -n "$CAFE24_USERNAME"
           test -n "$CAFE24_PASSWORD"
           test -n "$CAFE24_PORT"
+          test -n "$CAFE24_PATH"
 
-          echo "::group::FTP login directory"
           lftp -u "$CAFE24_USERNAME","$CAFE24_PASSWORD" -p "$CAFE24_PORT" "$CAFE24_HOST" <<EOF
           set ftp:passive-mode true
           set ftp:ssl-allow no
           set net:timeout 30
           set net:max-retries 2
-          pwd
-          cls -la
+          cd "$CAFE24_PATH"
+          put deploy-test.txt -o deploy-test.txt
           bye
           EOF
-          echo "::endgroup::"
-
-          for target_path in "/" "/www" "/WWW"; do
-            echo "::group::FTP path probe ${target_path}"
-            if lftp -u "$CAFE24_USERNAME","$CAFE24_PASSWORD" -p "$CAFE24_PORT" "$CAFE24_HOST" <<EOF
-          set ftp:passive-mode true
-          set ftp:ssl-allow no
-          set net:timeout 30
-          set net:max-retries 2
-          cd "${target_path}"
-          pwd
-          cls -la
-          bye
-          EOF
-            then
-              echo "FTP path probe succeeded: ${target_path}"
-            else
-              echo "FTP path probe failed: ${target_path}"
-            fi
-            echo "::endgroup::"
-          done
-
-      - name: Test upload is disabled
-        run: |
-          echo "deploy-test.txt upload is disabled until a writable Cafe24 FTP path is confirmed."
-
-  full-deploy-disabled:
-    name: Full deploy is disabled
-    runs-on: ubuntu-latest
-    if: ${{ inputs.test_only != true }}
-    steps:
-      - name: Stop full deploy
-        run: |
-          echo "Full site deployment is intentionally disabled. Re-run with test_only=true."
-          exit 1
